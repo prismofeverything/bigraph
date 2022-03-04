@@ -1,11 +1,6 @@
 import copy
 import json
-
-def none_str(v, none):
-    if v is None:
-        return none
-    else:
-        return str(v)
+import fire
 
 class Bigraph():
     def __init__(self, definition=None):
@@ -19,10 +14,16 @@ class Node(Bigraph):
         self.sites = sites
 
     def label(self):
-        return list(self.control.keys())[0]
+        if isinstance(self.control, dict):
+            return list(self.control.keys())[0]
+        else:
+            return self.control
 
     def arity(self):
-        return list(self.control.values())[0]
+        if isinstance(self.control, dict):
+            return list(self.control.values())[0]
+        else:
+            return 0
 
     def nest(self, inner):
         self.sites = inner
@@ -31,16 +32,28 @@ class Node(Bigraph):
     def render(self):
         render = self.label()
         arity = self.arity()
+
         if arity > 0:
             names = ', '.join([
-                none_str(port, '{}')
+                port or '{}'
                 for port in self.ports])
             names = '{' + names + '}'
             render = f'{render}{names}'
+
         if self.sites:
             inner = self.sites.render()
             render = f'{render}.{inner}'
+
         return render
+
+id_node = Node('id')
+
+class Edge(Bigraph):
+    def __init__(self, name):
+        self.name = name
+
+    def render(self):
+        return '{' + self.name + '}'
 
 class Parallel(Bigraph):
     def __init__(self, parallel):
@@ -69,12 +82,13 @@ class Reaction():
         self.instantiation = instantiation
         self.rate = rate
 
-    def render(self):
+    def render(self, indent=0):
+        block = ''.join([' ' for _ in range(indent)])
         rate = '[ ' + str(self.rate) + ' ]' if self.rate else ''
-        arrow = '-{rate}->'
-        render = self.match.render() + '\n' + arrow + '\n' + self.result.render()
+        arrow = f'-{rate}->'
+        render = block + self.match.render() + '\n' + block + arrow + '\n' + block + self.result.render()
         if self.instantiation:
-            render = render + '\n@ ' + str(self.instantiation)
+            render = render + '\n' + block + '@ ' + str(self.instantiation)
         return render
 
 class BigraphicalReactiveSystem():
@@ -83,14 +97,45 @@ class BigraphicalReactiveSystem():
             controls=None,
             bigraphs=None,
             reactions=None,
-            system=None):
+            system=None,
+            executable='bigrapher'):
         self.controls = controls or {}
         self.bigraphs = bigraphs or {}
         self.reactions = reactions or {}
         self.system = system
 
+    def render(self):
+        controls = '\n'.join([
+            f'atomic ctrl {label} = {control["ports"]};' if isinstance(control, dict) and control['atomic'] else f'ctrl {label} = {control};'
+            for label, control in self.controls.items()])
 
-def test_bigraphs():
+        reactions = '\n'.join([
+            f'react {label} =\n{reaction.render(2)};\n'
+            for label, reaction in self.reactions.items()])
+
+        bigraphs = '\n'.join([
+            f'big {label} =\n  {bigraph.render()};\n'
+            for label, bigraph in self.bigraphs.items()])
+
+        declarations = '\n\n'.join([controls, reactions, bigraphs])
+
+        rules = ', '.join(self.reactions.keys())
+        predicates = ', '.join(self.system.get('preds', []))
+
+        system = '\n'.join([
+            'begin brs',
+            f'  init {self.system["init"]};',
+            f'  rules = [ {{{rules}}} ];',
+            f'  preds = {{ {predicates} }};',
+            'end'])
+
+        big = '\n\n'.join([declarations, system])
+        return big
+
+
+def test_bigraphs(
+        executable='bigrapher'):
+
     controls = {
         'A': 1,
         'A\'': 1,
@@ -101,26 +146,29 @@ def test_bigraphs():
         'New': 0,
         'Fun': 0}
 
-    bigraphs = {
-        'a0': Node({'A': 1}, ['a']).nest(
-            Node({'Snd': 0}).nest(
-                Merge([
-                    Node({'M': 2}, ['a', 'v_a']),
-                    Node({'Ready': 0}).nest(
-                        Node({'Fun': 0}).nest(
-                            Node({'1': 0})))]))),
+    a0 = Node({'A': 1}, ['a']).nest(
+        Node('Snd').nest(
+            Merge([
+                Node({'M': 2}, ['a', 'v_a']),
+                Node('Ready').nest(
+                    Node('Fun').nest(
+                        Node('1')))])))
 
-        'a1': Node({'A': 1}, ['b']).nest(
-            Node({'Snd': 0}).nest(
-                Node({'M': 2}, ['a', 'v_b']))),
+    a1 = Node({'A': 1}, ['b']).nest(
+        Node('Snd').nest(
+            Node({'M': 2}, ['a', 'v_b'])))
+
+    bigraphs = {
+        'a0': a0,
+        'a1': a1,
 
         's0': Merge([
             a0,
             a1,
-            Node({'Mail': 0}).nest(
-                Node({'1': 0}))]),
+            Node('Mail').nest(
+                Node('1'))]),
 
-        'phi': Node({'Mail': 0}).nest(
+        'phi': Node('Mail').nest(
             Merge([
                 Node({'M': 2}, ['a', 'v']),
                 id_node]))}
@@ -129,26 +177,59 @@ def test_bigraphs():
         'snd': Reaction(
             Merge([
                 Node({'A': 1}, ['a0']).nest(
-                    Node({'Snd': 0}).nest(
+                    Node('Snd').nest(
                         Merge([
                             Node({'M': 2}, ['a1', 'v']),
                             id_node]))),
-                id_node]),
+                Node('Mail')]),
             Merge([
                 Node({'A': 1}, ['a0']),
-                Node({'Mail': 0}).nest(
+                Node('Mail').nest(
                     Merge([
                         Node({'M': 2}, ['a1', 'v']),
-                        id_node]))]))
+                        id_node]))])),
 
-        }
+        'ready': Reaction(
+            Merge([
+                Node({'A': 1}, ['a']).nest(
+                    Node('Ready')),
+                Node('Mail').nest(
+                    Merge([
+                        Node({'M': 2}, ['a', 'v']),
+                        id_node]))]),
+            Merge([
+                Node({'A': 1}, ['a']),
+                Node('Mail'),
+                Edge('v')])),
+
+        'lambda': Reaction(
+            Node({'A': 1}, ['a']).nest(
+                Node('Fun')),
+            Node({'A': 1}, ['a'])),
+
+        'new': Reaction(
+            Node({'A': 1}, ['a0']).nest(
+                Merge([
+                    Node('New').nest(
+                        Merge([
+                            Node({'A\'': 1}, ['a1']),
+                            id_node])),
+                    id_node])),
+            Merge([
+                Node({'A': 1}, ['a0']).nest(
+                    Merge([id_node, id_node])),
+                Node({'A': 1}, ['a1']).nest(
+                    Merge([id_node, id_node]))]),
+            instantiation=[1, 2, 0, 2])}
             
+    system = BigraphicalReactiveSystem(
+        controls=controls,
+        bigraphs=bigraphs,
+        reactions=reactions,
+        system={'init': 's0', 'preds': ['phi']})
 
-    print(f'a0: {a0.render()}')
-    print(f'a1: {a1.render()}')
-    print(f's0: {s0.render()}')
-    print(f'phi: {phi.render()}')
+    print(system.render())
 
 
 if __name__ == '__main__':
-    test_bigraphs()
+    fire.Fire(test_bigraphs)

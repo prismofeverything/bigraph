@@ -1,6 +1,8 @@
+import os
 import copy
 import json
 import fire
+from pathlib import Path
 
 class Bigraph():
     def __init__(self, definition=None):
@@ -98,11 +100,23 @@ class BigraphicalReactiveSystem():
             bigraphs=None,
             reactions=None,
             system=None,
-            executable='bigrapher'):
+            executable='bigrapher',
+            path='.'):
         self.controls = controls or {}
         self.bigraphs = bigraphs or {}
         self.reactions = reactions or {}
         self.system = system
+
+        self.executable = executable
+        self.path = Path(path)
+
+    def simulate(self):
+        render = self.render()
+        big_path = self.path / 'system.big'
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
+        with open(big_path, 'w') as big_file:
+            big_file.write(render)
 
     def render(self):
         controls = '\n'.join([
@@ -226,7 +240,11 @@ def test_bigraphs(
         controls=controls,
         bigraphs=bigraphs,
         reactions=reactions,
-        system={'init': 's0', 'preds': ['phi']})
+        system={'init': 's0', 'preds': ['phi']},
+        executable='/home/youdonotexist/code/bigraph-tools/_build/default/bigrapher/src/bigrapher.exe',
+        path='out/test/example')
+
+    system.simulate()
 
     print(system.render())
 

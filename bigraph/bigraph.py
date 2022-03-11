@@ -24,6 +24,10 @@ class Bigraph():
     def get_merge(self):
         return [self]
 
+    def to_spec(self):
+        # TODO
+        return {}
+
     @classmethod
     def from_spec(cls, spec):
         nodes_state = spec['nodes']

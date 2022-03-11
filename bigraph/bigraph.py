@@ -2,6 +2,8 @@ import os
 import copy
 import json
 import fire
+import subprocess
+import networkx as nx
 from pathlib import Path
 
 
@@ -23,7 +25,7 @@ class Bigraph():
         return [self]
 
     @classmethod
-    def from_spec(cls, spec)
+    def from_spec(cls, spec):
         nodes_state = spec['nodes']
         place_state = spec['place_graph']
         link_state = spec['link_graph']
@@ -32,19 +34,19 @@ class Bigraph():
         all_inner_names = []
 
         nodes = {
-            node['id']: Node.from_spec(node['control'])
+            node['node_id']: Node.from_spec(node['control'])
             for node in nodes_state}
 
         for link in link_state:
             outer_names = [
                 outer['name']
                 for outer in link['outer']]
-            all_outer_names.concat(outer_names)
+            all_outer_names.extend(outer_names)
 
             inner_names = [
                 inner['name']
                 for inner in link['inner']]
-            all_inner_names.concat(inner_names)
+            all_inner_names.extend(inner_names)
 
             # TODO is this necessary? It seems like it might be desirable
             #   to ensure that each link has only one outer/inner name
@@ -56,7 +58,7 @@ class Bigraph():
                 raise Exception(f'no defined inner or outer names for link {link}')
 
             for port in link['ports']:
-                node[port['node_id']].link(canonical_name)
+                nodes[port['node_id']].link(canonical_name)
 
         targets = [
             edge['target']
@@ -191,7 +193,7 @@ class Merge(Bigraph):
             self.merge(merge)
 
     def merge(self, other):
-        self.parts.concat(other.get_merge())
+        self.parts.extend(other.get_merge())
 
     def render(self):
         merge = ' | '.join([
@@ -225,7 +227,8 @@ class BigraphicalReactiveSystem():
             reactions=None,
             system=None,
             executable='bigrapher',
-            path='.'):
+            path='.',
+            key='system'):
         self.controls = controls or {}
         self.bigraphs = bigraphs or {}
         self.reactions = reactions or {}
@@ -238,30 +241,76 @@ class BigraphicalReactiveSystem():
 
         self.executable = executable
         self.path = Path(path)
+        self.key = key
 
     @classmethod
     def from_spec(cls, spec):
         state = Bigraph.from_spec(spec['state'])
         return cls(bigraphs=[state])
 
-    def write(self, path):
+    def write(self, path=None, key=None):
+        path = path or self.path
+        key = key or self.key
+
         render = self.render()
-        big_path = path / 'system.big'
+        big_path = path / f'{key}.big'
         if not os.path.exists(path):
             os.makedirs(path)
         with open(big_path, 'w') as big_file:
             big_file.write(render)
 
-    def execute(self):
-        pass
+    def execute(self, path=None, key=None):
+        path = path or self.path
+        key = key or self.key
 
-    def read(self, path):
-        return {}
+        command = [
+            self.executable,
+            'sim',
+            '-s',
+            '-t',
+            path / key,
+            '-f',
+            'json',
+            path / f'{key}.big']
 
-    def simulate(self):
-        self.write(self.path)
-        self.execute(self.path / 'system.big')
-        result = self.read(self.path / 'system.json')
+        bigrapher_process = subprocess.Popen(command, stdout=subprocess.PIPE)
+        output, error = bigrapher_process.communicate()
+
+        print(output)
+        print('\n\n\n')
+        print(error)
+        print('\n\n\n')
+
+    def read(self, path=None, key=None):
+        path = path or self.path
+        key = key or self.key
+
+        with open(path / f'{key}.json', 'r') as system_file:
+            transitions = json.load(system_file)['brs']
+
+        trajectory = nx.DiGraph()
+        for transition in transitions:
+            edge = [transition['source'], transition['target']]
+            trajectory.add_edge(*edge)
+        steps = nx.topological_generations(trajectory)
+
+        history = []
+        for step in steps:
+            for parallel in step:
+                with open(path / f'{parallel}.json', 'r') as step_file:
+                    state = json.load(step_file)
+                    root = Bigraph.from_spec(state)
+                    history.append(root)
+
+        return history
+
+    def simulate(self, path=None, key=None):
+        path = path or self.path
+        key = key or self.key
+
+        self.write(path=path, key=key)
+        self.execute(path=path, key=key)
+        result = self.read(path=path, key=key)
         return result
 
     def render(self):
@@ -388,12 +437,15 @@ def test_bigraphs(
         reactions=reactions,
         system={'init': 's0', 'preds': ['phi']},
         executable='/home/youdonotexist/code/bigraph-tools/_build/default/bigrapher/src/bigrapher.exe',
-        path='out/test/example')
+        path='out/test/execute')
 
-    system.simulate()
+    result = system.simulate()
 
     print(system.render())
-
+    print('\n\n\n')
+    print('TRANSITIONS:')
+    for transition in result:
+        print(transition.render())
 
 if __name__ == '__main__':
     fire.Fire(test_bigraphs)

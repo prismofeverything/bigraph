@@ -435,8 +435,20 @@ def test_bigraphs(
         controls=controls,
         bigraphs=bigraphs,
         reactions=reactions,
-        system={'init': 's0', 'preds': ['phi']},
-        executable='/home/youdonotexist/code/bigraph-tools/_build/default/bigrapher/src/bigrapher.exe',
+        system={
+            'init': 's0',
+            'preds': ['phi']},
+        executable=Path(
+            '/',
+            'home',
+            'youdonotexist',
+            'code',
+            'bigraph-tools',
+            '_build',
+            'default',
+            'bigrapher',
+            'src',
+            'bigrapher.exe'),
         path='out/test/execute')
 
     result = system.simulate()

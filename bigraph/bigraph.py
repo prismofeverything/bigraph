@@ -4,16 +4,117 @@ import json
 import fire
 from pathlib import Path
 
+
+def none_index(seq):
+    for index, value in enumerate(seq):
+        if value is None:
+            return index
+    return -1
+
+
 class Bigraph():
     def __init__(self, definition=None):
         self.definition = definition
 
+    def merge(self, other):
+        return Merge([self, other])
+
+    def get_merge(self):
+        return [self]
+
+    @classmethod
+    def from_spec(cls, spec)
+        nodes_state = spec['nodes']
+        place_state = spec['place_graph']
+        link_state = spec['link_graph']
+        
+        all_outer_names = []
+        all_inner_names = []
+
+        nodes = {
+            node['id']: Node.from_spec(node['control'])
+            for node in nodes_state}
+
+        for link in link_state:
+            outer_names = [
+                outer['name']
+                for outer in link['outer']]
+            all_outer_names.concat(outer_names)
+
+            inner_names = [
+                inner['name']
+                for inner in link['inner']]
+            all_inner_names.concat(inner_names)
+
+            # TODO is this necessary? It seems like it might be desirable
+            #   to ensure that each link has only one outer/inner name
+            if len(outer_names) > 0:
+                canonical_name = outer_names[0]
+            elif len(inner_names) > 0:
+                canonical_name = inner_names[0]
+            else:
+                raise Exception(f'no defined inner or outer names for link {link}')
+
+            for port in link['ports']:
+                node[port['node_id']].link(canonical_name)
+
+        targets = [
+            edge['target']
+            for edge in place_state['rn']]
+        if len(targets) > 1:
+            root = Merge([
+                nodes[id]
+                for id in targets])
+        elif len(targets) == 1:
+            root = nodes[targets[0]]
+        else:
+            # TODO: is this true?
+            raise Exception('cannot have a bigraph without at least one root node')
+
+        for nest in place_state['nn']:
+            above = nodes[nest['source']]
+            below = nodes[nest['target']]
+            above.nest(below)
+
+        return root
+            
+
 class Node(Bigraph):
-    def __init__(self, control, ports=None, sites=None):
+    def __init__(
+            self,
+            control,
+            ports=None,
+            sites=None,
+            params=None):
+        ''' create a bigraphical node 
+
+        Args:
+            control: either a string (for 0 arity), or a dict with one
+                key whose value is the arity.
+            ports: a list of edges into this node. initialized to a list
+                containing `None` for range(arity) if arg is `None`
+            sites: TODO
+        '''
+
+
         self.control = control
+        self.params = params
         self.ports = ports or [
             None for _ in range(self.arity())]
         self.sites = sites
+
+    @classmethod
+    def from_spec(cls, spec):
+        # this is from the big_json format
+        if spec['ctrl_arity'] == 0:
+            control = spec['ctrl_name']
+        else:
+            control = {spec['ctrl_name']: spec['ctrl_arity']}
+        params = [
+            param.keys
+            for param in spec['ctrl_params']]
+
+        return cls(control, params=params)
 
     def label(self):
         if isinstance(self.control, dict):
@@ -27,8 +128,20 @@ class Node(Bigraph):
         else:
             return 0
 
+    def link(self, name):
+        index = none_index(self.ports)
+
+        if index == -1:
+            raise Exception('cannot link name {name}, all ports have already been named for this node: {self.render()}')
+
+        self.ports[index] = name
+
     def nest(self, inner):
-        self.sites = inner
+        if self.sites:
+            self.sites.merge(inner)
+        else:
+            self.sites = inner
+
         return self
 
     def render(self):
@@ -48,7 +161,9 @@ class Node(Bigraph):
 
         return render
 
+
 id_node = Node('id')
+
 
 class Edge(Bigraph):
     def __init__(self, name):
@@ -56,6 +171,7 @@ class Edge(Bigraph):
 
     def render(self):
         return '{' + self.name + '}'
+
 
 class Parallel(Bigraph):
     def __init__(self, parallel):
@@ -67,15 +183,22 @@ class Parallel(Bigraph):
             for parallel in self.parallel])
         return f'({parallel})'
 
+
 class Merge(Bigraph):
-    def __init__(self, merge):
-        self.merge = merge or []
+    def __init__(self, merges):
+        self.parts = []
+        for merge in merges:
+            self.merge(merge)
+
+    def merge(self, other):
+        self.parts.concat(other.get_merge())
 
     def render(self):
         merge = ' | '.join([
             merge.render()
-            for merge in self.merge])
+            for merge in self.parts])
         return f'({merge})'
+
 
 class Reaction():
     def __init__(self, match, result, instantiation=None, rate=None):
@@ -93,6 +216,7 @@ class Reaction():
             render = render + '\n' + block + '@ ' + str(self.instantiation)
         return render
 
+
 class BigraphicalReactiveSystem():
     def __init__(
             self,
@@ -107,16 +231,38 @@ class BigraphicalReactiveSystem():
         self.reactions = reactions or {}
         self.system = system
 
+        self.regions = []
+        self.sites = []
+        self.outer_names = []
+        self.inner_names = []
+
         self.executable = executable
         self.path = Path(path)
 
-    def simulate(self):
+    @classmethod
+    def from_spec(cls, spec):
+        state = Bigraph.from_spec(spec['state'])
+        return cls(bigraphs=[state])
+
+    def write(self, path):
         render = self.render()
-        big_path = self.path / 'system.big'
-        if not os.path.exists(self.path):
-            os.makedirs(self.path)
+        big_path = path / 'system.big'
+        if not os.path.exists(path):
+            os.makedirs(path)
         with open(big_path, 'w') as big_file:
             big_file.write(render)
+
+    def execute(self):
+        pass
+
+    def read(self, path):
+        return {}
+
+    def simulate(self):
+        self.write(self.path)
+        self.execute(self.path / 'system.big')
+        result = self.read(self.path / 'system.json')
+        return result
 
     def render(self):
         controls = '\n'.join([

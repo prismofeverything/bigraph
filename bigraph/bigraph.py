@@ -7,6 +7,9 @@ import networkx as nx
 from pathlib import Path
 
 
+AVAILABLE_OUTPUT_FORMATS = ['json', 'svg', 'txt']
+
+
 def none_index(seq):
     for index, value in enumerate(seq):
         if value is None:
@@ -265,7 +268,16 @@ class BigraphicalReactiveSystem():
         with open(big_path, 'w') as big_file:
             big_file.write(render)
 
-    def execute(self, path=None, key=None):
+    def execute(
+        self,
+        path=None,
+        key=None,
+        format='json',
+        console=False):
+
+        if not format in AVAILABLE_OUTPUT_FORMATS:
+            raise Exception(f'output format "{format}" not supported. Available formats are {AVAILABLE_OUTPUT_FORMATS}')
+
         path = path or self.path
         key = key or self.key
 
@@ -276,16 +288,19 @@ class BigraphicalReactiveSystem():
             '-t',
             path / key,
             '-f',
-            'json',
+            format,
             path / f'{key}.big']
 
         bigrapher_process = subprocess.Popen(command, stdout=subprocess.PIPE)
         output, error = bigrapher_process.communicate()
 
-        print(output)
-        print('\n\n\n')
-        print(error)
-        print('\n\n\n')
+        if console:
+            print(' '.join([str(token) for token in command]))
+            print('\n\n\n')
+            print(output)
+            print('\n\n\n')
+            print(error)
+            print('\n\n\n')
 
     def read(self, path=None, key=None):
         path = path or self.path
@@ -310,12 +325,18 @@ class BigraphicalReactiveSystem():
 
         return history
 
-    def simulate(self, path=None, key=None):
+    def simulate(
+        self,
+        path=None,
+        key=None,
+        format='json',
+        console=False):
+
         path = path or self.path
         key = key or self.key
 
         self.write(path=path, key=key)
-        self.execute(path=path, key=key)
+        self.execute(path=path, key=key, format=format, console=console)
         result = self.read(path=path, key=key)
         return result
 
@@ -445,7 +466,12 @@ def test_bigraphs(
         executable='../bigraph-tools/_build/default/bigrapher/src/bigrapher.exe',
         path='out/test/execute')
 
-    result = system.simulate()
+    result = system.simulate(
+       format='json',
+       console=True)
+
+       # format='svg',
+       # console=True)
 
     print(system.render())
     print('\n\n\n')

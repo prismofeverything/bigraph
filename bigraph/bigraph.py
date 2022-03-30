@@ -146,7 +146,7 @@ class Node(Bigraph):
 
         return self
 
-    def render(self):
+    def render(self, parent=False):
         render = self.label()
         arity = self.arity()
 
@@ -158,7 +158,7 @@ class Node(Bigraph):
             render = f'{render}{names}'
 
         if self.sites:
-            inner = self.sites.render()
+            inner = self.sites.render(parent=True)
             render = f'{render}.{inner}'
 
         return render
@@ -171,7 +171,7 @@ class Edge(Bigraph):
     def __init__(self, name):
         self.name = name
 
-    def render(self):
+    def render(self, parent=False):
         return '{' + self.name + '}'
 
 
@@ -179,11 +179,14 @@ class Parallel(Bigraph):
     def __init__(self, parallel):
         self.parallel = parallel or []
 
-    def render(self):
+    def render(self, parent=False):
         parallel = ' || '.join([
             parallel.render()
             for parallel in self.parallel])
-        return f'({parallel})'
+        render = f'{parallel}'
+        if parent:
+            render = f'({render})'
+        return render
 
 
 class Merge(Bigraph):
@@ -195,11 +198,14 @@ class Merge(Bigraph):
     def merge(self, other):
         self.parts.extend(other.get_merge())
 
-    def render(self):
+    def render(self, parent=False):
         merge = ' | '.join([
             merge.render()
             for merge in self.parts])
-        return f'({merge})'
+        render = f'{merge}'
+        if parent:
+            render = f'({render})'
+        return render
 
 
 class Reaction():
@@ -209,7 +215,7 @@ class Reaction():
         self.instantiation = instantiation
         self.rate = rate
 
-    def render(self, indent=0):
+    def render(self, indent=0, parent=False):
         block = ''.join([' ' for _ in range(indent)])
         rate = '[ ' + str(self.rate) + ' ]' if self.rate else ''
         arrow = f'-{rate}->'
@@ -313,7 +319,7 @@ class BigraphicalReactiveSystem():
         result = self.read(path=path, key=key)
         return result
 
-    def render(self):
+    def render(self, parent=False):
         controls = '\n'.join([
             f'atomic ctrl {label} = {control["ports"]};' if isinstance(control, dict) and control['atomic'] else f'ctrl {label} = {control};'
             for label, control in self.controls.items()])
@@ -436,7 +442,7 @@ def test_bigraphs(
         bigraphs=bigraphs,
         reactions=reactions,
         system={'init': 's0', 'preds': ['phi']},
-        executable='/home/youdonotexist/code/bigraph-tools/_build/default/bigrapher/src/bigrapher.exe',
+        executable='../bigraph-tools/_build/default/bigrapher/src/bigrapher.exe',
         path='out/test/execute')
 
     result = system.simulate()

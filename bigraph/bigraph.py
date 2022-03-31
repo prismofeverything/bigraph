@@ -7,6 +7,9 @@ import networkx as nx
 from pathlib import Path
 
 
+AVAILABLE_OUTPUT_FORMATS = ['json', 'svg', 'txt']
+
+
 def none_index(seq):
     for index, value in enumerate(seq):
         if value is None:
@@ -150,7 +153,7 @@ class Node(Bigraph):
 
         return self
 
-    def render(self):
+    def render(self, parent=False):
         render = self.label()
         arity = self.arity()
 
@@ -162,7 +165,7 @@ class Node(Bigraph):
             render = f'{render}{names}'
 
         if self.sites:
-            inner = self.sites.render()
+            inner = self.sites.render(parent=True)
             render = f'{render}.{inner}'
 
         return render
@@ -175,7 +178,7 @@ class Edge(Bigraph):
     def __init__(self, name):
         self.name = name
 
-    def render(self):
+    def render(self, parent=False):
         return '{' + self.name + '}'
 
 
@@ -183,11 +186,14 @@ class Parallel(Bigraph):
     def __init__(self, parallel):
         self.parallel = parallel or []
 
-    def render(self):
+    def render(self, parent=False):
         parallel = ' || '.join([
             parallel.render()
             for parallel in self.parallel])
-        return f'({parallel})'
+        render = f'{parallel}'
+        if parent:
+            render = f'({render})'
+        return render
 
 
 class Merge(Bigraph):
@@ -199,11 +205,14 @@ class Merge(Bigraph):
     def merge(self, other):
         self.parts.extend(other.get_merge())
 
-    def render(self):
+    def render(self, parent=False):
         merge = ' | '.join([
             merge.render()
             for merge in self.parts])
-        return f'({merge})'
+        render = f'{merge}'
+        if parent:
+            render = f'({render})'
+        return render
 
 
 class Reaction():
@@ -213,7 +222,7 @@ class Reaction():
         self.instantiation = instantiation
         self.rate = rate
 
-    def render(self, indent=0):
+    def render(self, indent=0, parent=False):
         block = ''.join([' ' for _ in range(indent)])
         rate = '[ ' + str(self.rate) + ' ]' if self.rate else ''
         arrow = f'-{rate}->'
@@ -263,7 +272,16 @@ class BigraphicalReactiveSystem():
         with open(big_path, 'w') as big_file:
             big_file.write(render)
 
-    def execute(self, path=None, key=None):
+    def execute(
+        self,
+        path=None,
+        key=None,
+        format='json',
+        console=False):
+
+        if not format in AVAILABLE_OUTPUT_FORMATS:
+            raise Exception(f'output format "{format}" not supported. Available formats are {AVAILABLE_OUTPUT_FORMATS}')
+
         path = path or self.path
         key = key or self.key
 
@@ -274,16 +292,19 @@ class BigraphicalReactiveSystem():
             '-t',
             path / key,
             '-f',
-            'json',
+            format,
             path / f'{key}.big']
 
         bigrapher_process = subprocess.Popen(command, stdout=subprocess.PIPE)
         output, error = bigrapher_process.communicate()
 
-        print(output)
-        print('\n\n\n')
-        print(error)
-        print('\n\n\n')
+        if console:
+            print(' '.join([str(token) for token in command]))
+            print('\n\n\n')
+            print(output)
+            print('\n\n\n')
+            print(error)
+            print('\n\n\n')
 
     def read(self, path=None, key=None):
         path = path or self.path
@@ -308,16 +329,22 @@ class BigraphicalReactiveSystem():
 
         return history
 
-    def simulate(self, path=None, key=None):
+    def simulate(
+        self,
+        path=None,
+        key=None,
+        format='json',
+        console=False):
+
         path = path or self.path
         key = key or self.key
 
         self.write(path=path, key=key)
-        self.execute(path=path, key=key)
+        self.execute(path=path, key=key, format=format, console=console)
         result = self.read(path=path, key=key)
         return result
 
-    def render(self):
+    def render(self, parent=False):
         controls = '\n'.join([
             f'atomic ctrl {label} = {control["ports"]};' if isinstance(control, dict) and control['atomic'] else f'ctrl {label} = {control};'
             for label, control in self.controls.items()])
@@ -442,20 +469,26 @@ def test_bigraphs(
         system={
             'init': 's0',
             'preds': ['phi']},
-        executable=Path(
-            '/',
-            'home',
-            'youdonotexist',
-            'code',
-            'bigraph-tools',
-            '_build',
-            'default',
-            'bigrapher',
-            'src',
-            'bigrapher.exe'),
+        # executable=Path(
+        #     '/',
+        #     'home',
+        #     'youdonotexist',
+        #     'code',
+        #     'bigraph-tools',
+        #     '_build',
+        #     'default',
+        #     'bigrapher',
+        #     'src',
+        #     'bigrapher.exe'),
+        executable='../bigraph-tools/_build/default/bigrapher/src/bigrapher.exe',
         path='out/test/execute')
 
-    result = system.simulate()
+    result = system.simulate(
+       format='json',
+       console=True)
+
+       # format='svg',
+       # console=True)
 
     print(system.render())
     print('\n\n\n')

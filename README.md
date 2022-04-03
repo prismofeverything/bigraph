@@ -40,11 +40,16 @@ To install opam:
 
 Then to install dune
 
+```bash
+> opam init
 > opam install dune.2.5.1
+```
 
 The various requirements for bigraph-tools are:
 
+```bash
 > opam install cmdliner jsonm menhir dune-configurator mtime
+```
 
 Clone the repo and check out the v1.3.4 branch:
 

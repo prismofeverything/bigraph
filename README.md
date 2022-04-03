@@ -55,7 +55,8 @@ Clone the repo and check out the v1.3.4 branch:
 
 ```bash
  git clone https://bitbucket.org/uog-bigraph/bigraph-tools.git
- git co v1.3.4
+ cd bigraph-tools
+ git checkout v1.3.4
 ```
 
 

@@ -1,6 +1,8 @@
 import fire
 from parsimonious.grammar import Grammar
+from parsimonious.nodes import NodeVisitor
 
+from bigraph import Bigraph, Node, Edge, Parallel, Merge, Reaction
 
 examples = {
     'control': 'Aaa',
@@ -41,8 +43,24 @@ big = Grammar(
     """)
 
 
+class BigVisitor(NodeVisitor):
+    def visit_merge(self, node, visit):
+        return Merge(visit)
+
+    def visit_parallel(self, node, visit):
+        return Parallel(visit)
+
+    def visit_group(self, node, visit):
+        return visit[1]
+
+
 if __name__ == '__main__':
     for key, example in examples.items():
+        parse = big.parse(example)
+        visitor = BigVisitor()
+        bigraph = visitor.visit(parse)
+
         print(f'{key}: {example}')
-        print(big.parse(example))
+        print(parse)
+        print(bigraph)
 

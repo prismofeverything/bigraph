@@ -31,24 +31,33 @@ First you have to install bigraph-tools, which requires opam and dune.
 
 To install opam: 
 
-> sudo add-apt-repository ppa:avsm/ppa
-> sudo apt update
-> sudo apt install opam --upgrade
-> sudo apt install minisat cppo
+```bash
+ sudo add-apt-repository ppa:avsm/ppa
+ sudo apt update
+ sudo apt install opam --upgrade
+ sudo apt install minisat cppo
+```
 
 Then to install dune
 
-> opam install dune.2.5.1
+```bash
+opam init
+opam install dune.2.5.1
+```
 
 The various requirements for bigraph-tools are:
 
-> opam install cmdliner jsonm menhir dune-configurator mtime
+```bash
+opam install cmdliner jsonm menhir dune-configurator mtime
+```
 
 Clone the repo and check out the v1.3.4 branch:
 
-> git clone https://bitbucket.org/uog-bigraph/bigraph-tools.git
-> git co v1.3.4
-
+```bash
+ git clone https://bitbucket.org/uog-bigraph/bigraph-tools.git
+ cd bigraph-tools
+ git checkout v1.3.4
+```
 
 
 ## Features

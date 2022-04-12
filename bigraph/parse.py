@@ -53,6 +53,12 @@ class BigVisitor(NodeVisitor):
     def visit_group(self, node, visit):
         return visit[1]
 
+    def visit_control(self, node, visit):
+        return node.text
+
+    def generic_visit(self, node, visit):
+        return visit or node
+
 
 if __name__ == '__main__':
     for key, example in examples.items():

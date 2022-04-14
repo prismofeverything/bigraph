@@ -41,7 +41,7 @@ class Bigraph():
         all_inner_names = []
 
         nodes = {
-            node['node_id']: Node.from_spec(node['control'])
+            node['node_id']: Control.from_spec(node['control'])
             for node in nodes_state}
 
         for link in link_state:
@@ -88,7 +88,7 @@ class Bigraph():
         return root
             
 
-class Node(Bigraph):
+class Control(Bigraph):
     def __init__(
             self,
             control,
@@ -141,7 +141,8 @@ class Node(Bigraph):
         index = none_index(self.ports)
 
         if index == -1:
-            raise Exception('cannot link name {name}, all ports have already been named for this node: {self.render()}')
+            raise Exception(
+                'cannot link name {name}, all ports have already been named for this node: {self.render()}')
 
         self.ports[index] = name
 
@@ -171,7 +172,7 @@ class Node(Bigraph):
         return render
 
 
-id_node = Node('id')
+id_node = Control('id')
 
 
 class Edge(Bigraph):
@@ -386,17 +387,17 @@ def test_bigraphs(
         'New': 0,
         'Fun': 0}
 
-    a0 = Node({'A': 1}, ['a']).nest(
-        Node('Snd').nest(
+    a0 = Control({'A': 1}, ['a']).nest(
+        Control('Snd').nest(
             Merge([
-                Node({'M': 2}, ['a', 'v_a']),
-                Node('Ready').nest(
-                    Node('Fun').nest(
-                        Node('1')))])))
+                Control({'M': 2}, ['a', 'v_a']),
+                Control('Ready').nest(
+                    Control('Fun').nest(
+                        Control('1')))])))
 
-    a1 = Node({'A': 1}, ['b']).nest(
-        Node('Snd').nest(
-            Node({'M': 2}, ['a', 'v_b'])))
+    a1 = Control({'A': 1}, ['b']).nest(
+        Control('Snd').nest(
+            Control({'M': 2}, ['a', 'v_b'])))
 
     bigraphs = {
         'a0': a0,
@@ -405,60 +406,60 @@ def test_bigraphs(
         's0': Merge([
             a0,
             a1,
-            Node('Mail').nest(
-                Node('1'))]),
+            Control('Mail').nest(
+                Control('1'))]),
 
-        'phi': Node('Mail').nest(
+        'phi': Control('Mail').nest(
             Merge([
-                Node({'M': 2}, ['a', 'v']),
+                Control({'M': 2}, ['a', 'v']),
                 id_node]))}
 
     reactions = {
         'snd': Reaction(
             Merge([
-                Node({'A': 1}, ['a0']).nest(
-                    Node('Snd').nest(
+                Control({'A': 1}, ['a0']).nest(
+                    Control('Snd').nest(
                         Merge([
-                            Node({'M': 2}, ['a1', 'v']),
+                            Control({'M': 2}, ['a1', 'v']),
                             id_node]))),
-                Node('Mail')]),
+                Control('Mail')]),
             Merge([
-                Node({'A': 1}, ['a0']),
-                Node('Mail').nest(
+                Control({'A': 1}, ['a0']),
+                Control('Mail').nest(
                     Merge([
-                        Node({'M': 2}, ['a1', 'v']),
+                        Control({'M': 2}, ['a1', 'v']),
                         id_node]))])),
 
         'ready': Reaction(
             Merge([
-                Node({'A': 1}, ['a']).nest(
-                    Node('Ready')),
-                Node('Mail').nest(
+                Control({'A': 1}, ['a']).nest(
+                    Control('Ready')),
+                Control('Mail').nest(
                     Merge([
-                        Node({'M': 2}, ['a', 'v']),
+                        Control({'M': 2}, ['a', 'v']),
                         id_node]))]),
             Merge([
-                Node({'A': 1}, ['a']),
-                Node('Mail'),
+                Control({'A': 1}, ['a']),
+                Control('Mail'),
                 Edge('v')])),
 
         'lambda': Reaction(
-            Node({'A': 1}, ['a']).nest(
-                Node('Fun')),
-            Node({'A': 1}, ['a'])),
+            Control({'A': 1}, ['a']).nest(
+                Control('Fun')),
+            Control({'A': 1}, ['a'])),
 
         'new': Reaction(
-            Node({'A': 1}, ['a0']).nest(
+            Control({'A': 1}, ['a0']).nest(
                 Merge([
-                    Node('New').nest(
+                    Control('New').nest(
                         Merge([
-                            Node({'A\'': 1}, ['a1']),
+                            Control({'A\'': 1}, ['a1']),
                             id_node])),
                     id_node])),
             Merge([
-                Node({'A': 1}, ['a0']).nest(
+                Control({'A': 1}, ['a0']).nest(
                     Merge([id_node, id_node])),
-                Node({'A': 1}, ['a1']).nest(
+                Control({'A': 1}, ['a1']).nest(
                     Merge([id_node, id_node]))]),
             instantiation=[1, 2, 0, 2])}
             
@@ -469,17 +470,6 @@ def test_bigraphs(
         system={
             'init': 's0',
             'preds': ['phi']},
-        # executable=Path(
-        #     '/',
-        #     'home',
-        #     'youdonotexist',
-        #     'code',
-        #     'bigraph-tools',
-        #     '_build',
-        #     'default',
-        #     'bigrapher',
-        #     'src',
-        #     'bigrapher.exe'),
         executable='../bigraph-tools/_build/default/bigrapher/src/bigrapher.exe',
         path='out/test/execute')
 

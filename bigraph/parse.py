@@ -4,6 +4,7 @@ from parsimonious.nodes import NodeVisitor
 
 from bigraph import Bigraph, Control, Edge, Parallel, Merge, Reaction
 
+
 examples = {
     'control': 'Aaa',
     'edge': 'Aa{bbb}',
@@ -20,7 +21,6 @@ examples = {
     'full': 'A{a}.Snd.(M{a, v_a} | Ready.Fun.1) | A{b}.Snd.M{a, v_b} | Mail.1'}
 
 
-    # nest = control (period expression)+
 big = Grammar(
     """
     expression = group / merge / parallel / bigraph
@@ -109,18 +109,6 @@ class BigVisitor(NodeVisitor):
     def visit_edge_name(self, node, visit):
         return node.text
 
-    def visit_merge_pipe(self, node, visit):
-        return ''
-
-    def visit_parallel_pipe(self, node, visit):
-        return ''
-
-    def visit_comma(self, node, visit):
-        return ''
-
-    def visit_ws(self, node, visit):
-        return ''
-
     def generic_visit(self, node, visit):
         return {
             'node': node,
@@ -140,6 +128,5 @@ if __name__ == '__main__':
         bigraph, parse = parse_big(example)
 
         print(f'{key}: {example}')
-        # print(parse)
         print(bigraph.render())
 

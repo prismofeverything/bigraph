@@ -25,6 +25,10 @@ a python implementation of Robin Milner's bigraph formalism
 * Documentation: <https://bigraph.readthedocs.io>
 
 
+## Usage
+
+This library is a python interface to [bigraph-tools](https://bitbucket.org/uog-bigraph/bigraph-tools/src/master/) from the [Glasgow Bigraph Team](https://uog-bigraph.bitbucket.io/team.html), and mediates the creation, execution, and parsing of results from that suite of tools. 
+
 ## Install on Ubuntu
 
 First you have to install bigraph-tools, which requires opam and dune.
@@ -42,7 +46,7 @@ Then to install dune
 
 ```bash
 opam init
-opam install dune.2.5.1
+opam install dune
 ```
 
 The various requirements for bigraph-tools are:
@@ -59,8 +63,8 @@ Clone the repo and check out the v1.3.4 branch:
  git checkout v1.3.4
 ```
 
-
-## Features
-
-* TODO
+Then build the bigraph-tools:
+```bash
+dune build --profile=release
+```
 

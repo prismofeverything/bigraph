@@ -375,7 +375,7 @@ class BigraphicalReactiveSystem():
 
 
 def test_bigraphs(
-        executable='bigrapher'):
+        executable='../bigraph-tools/_build/default/bigrapher/src/bigrapher.exe'):
 
     controls = {
         'A': 1,
@@ -470,7 +470,7 @@ def test_bigraphs(
         system={
             'init': 's0',
             'preds': ['phi']},
-        executable='../bigraph-tools/_build/default/bigrapher/src/bigrapher.exe',
+        executable=executable,
         path='out/test/execute')
 
     result = system.simulate(
@@ -485,6 +485,7 @@ def test_bigraphs(
     print('TRANSITIONS:')
     for transition in result:
         print(transition.render())
+
 
 if __name__ == '__main__':
     fire.Fire(test_bigraphs)

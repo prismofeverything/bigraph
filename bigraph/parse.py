@@ -20,14 +20,15 @@ examples = {
     'full': 'A{a}.Snd.(M{a, v_a} | Ready.Fun.1) | A{b}.Snd.M{a, v_b} | Mail.1'}
 
 
+    # nest = control (period expression)+
 big = Grammar(
     """
-    expression = merge / parallel / bigraph
+    expression = group / merge / parallel / bigraph
     merge = bigraph (merge_pipe bigraph)+
     parallel = bigraph (parallel_pipe bigraph)+
     bigraph = group / nest / control
     group = paren_left expression paren_right
-    nest = control (period expression)+
+    nest = control (period bigraph)+
     control = control_name edge_group?
     control_name = control_start name_tail
     control_start = ~r"[A-Z0-9]"

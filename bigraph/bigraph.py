@@ -41,7 +41,7 @@ class Bigraph():
         all_inner_names = []
 
         nodes = {
-            node['node_id']: Control.from_spec(node['control'])
+            node['node_id']: Node.from_spec(node['control'])
             for node in nodes_state}
 
         for link in link_state:
@@ -86,27 +86,57 @@ class Bigraph():
             above.nest(below)
 
         return root
-            
+
 
 class Control(Bigraph):
     def __init__(
             self,
-            control,
+            label=None,
+            arity=0,
+            atomic=False,
+            fun=()):
+        self.label = label
+        self.arity = arity
+        self.atomic = atomic
+        self.fun = fun
+            
+    def generate(self, ports, params=None):
+        return Node(
+            control=self,
+            ports=ports,
+            params=params)
+
+    def render(self):
+        params = ''
+        if self.fun:
+            params = ','.join(self.fun)
+            params = f'({params})'
+        render = f'ctrl {self.label}{params} = {self.arity}'
+        if self.fun:
+            render = f'fun {render}'
+        if self.atomic:
+            render = f'atomic {render}'
+
+        return render
+
+
+class Node(Bigraph):
+    def __init__(
+            self,
+            control=None,
             ports=None,
             sites=None,
             params=None):
         ''' create a bigraphical node 
 
         Args:
-            control: either a string (for 0 arity), or a dict with one
-                key whose value is the arity.
+            control: instance of Control describing this node's ports
             ports: a list of edges into this node. initialized to a list
                 containing `None` for range(arity) if arg is `None`
             sites: TODO
         '''
 
-
-        self.control = control
+        self.control = control or Control()
         self.params = params
         self.ports = ports or [
             None for _ in range(self.arity())]
@@ -115,27 +145,26 @@ class Control(Bigraph):
     @classmethod
     def from_spec(cls, spec):
         # this is from the big_json format
-        if spec['ctrl_arity'] == 0:
-            control = spec['ctrl_name']
-        else:
-            control = {spec['ctrl_name']: spec['ctrl_arity']}
-        params = [
-            param.keys
+        fun = [
+            list(param.keys())[0]
             for param in spec['ctrl_params']]
+
+        params = [
+            list(param.values())[0]
+            for param in spec['ctrl_params']]
+
+        control = Control(
+            spec['ctrl_name'],
+            arity=spec['ctrl_arity'],
+            fun=fun)
 
         return cls(control, params=params)
 
     def label(self):
-        if isinstance(self.control, dict):
-            return list(self.control.keys())[0]
-        else:
-            return self.control
+        return self.control.label or 'id'
 
     def arity(self):
-        if isinstance(self.control, dict):
-            return list(self.control.values())[0]
-        else:
-            return 0
+        return self.control.arity
 
     def link(self, name):
         index = none_index(self.ports)
@@ -172,7 +201,7 @@ class Control(Bigraph):
         return render
 
 
-id_node = Control('id')
+id_node = Node()
 
 
 class Edge(Bigraph):
@@ -346,9 +375,13 @@ class BigraphicalReactiveSystem():
         return result
 
     def render(self, parent=False):
+        # controls = '\n'.join([
+        #     f'atomic ctrl {label} = {control["ports"]};' if isinstance(control, dict) and control['atomic'] else f'ctrl {label} = {control};'
+        #     for label, control in self.controls.items()])
+
         controls = '\n'.join([
-            f'atomic ctrl {label} = {control["ports"]};' if isinstance(control, dict) and control['atomic'] else f'ctrl {label} = {control};'
-            for label, control in self.controls.items()])
+            f'{control.render()};'
+            for control in self.controls.values()])
 
         reactions = '\n'.join([
             f'react {label} =\n{reaction.render(2)};\n'
@@ -377,27 +410,38 @@ class BigraphicalReactiveSystem():
 def test_bigraphs(
         executable='../bigraph-tools/_build/default/bigrapher/src/bigrapher.exe'):
 
-    controls = {
-        'A': 1,
-        'A\'': 1,
-        'Mail': 0,
-        'M': {'atomic': True, 'ports': 2},
-        'Snd': 0,
-        'Ready': 0,
-        'New': 0,
-        'Fun': 0}
+    ctrl = {
+        'A': Control(label='A', arity=1),
+        'A\'': Control(label='A\'', arity=1),
+        'Mail': Control(label='Mail'),
+        'M': Control(label='M', atomic=True, arity=2),
+        'Snd': Control(label='Snd'),
+        'Ready': Control(label='Ready'),
+        'New': Control(label='New'),
+        'Fun': Control(label='Fun'),
+        '1': Control(label='1')}
 
-    a0 = Control({'A': 1}, ['a']).nest(
-        Control('Snd').nest(
+    # controls = {
+    #     'A': 1,
+    #     'A\'': 1,
+    #     'Mail': 0,
+    #     'M': {'atomic': True, 'ports': 2},
+    #     'Snd': 0,
+    #     'Ready': 0,
+    #     'New': 0,
+    #     'Fun': 0}
+
+    a0 = Node(ctrl['A'], ['a']).nest(
+        Node(ctrl['Snd']).nest(
             Merge([
-                Control({'M': 2}, ['a', 'v_a']),
-                Control('Ready').nest(
-                    Control('Fun').nest(
-                        Control('1')))])))
+                Node(ctrl['M'], ['a', 'v_a']),
+                Node(ctrl['Ready']).nest(
+                    Node(ctrl['Fun']).nest(
+                        Node(ctrl['1'])))])))
 
-    a1 = Control({'A': 1}, ['b']).nest(
-        Control('Snd').nest(
-            Control({'M': 2}, ['a', 'v_b'])))
+    a1 = Node(ctrl['A'], ['b']).nest(
+        Node(ctrl['Snd']).nest(
+            Node(ctrl['M'], ['a', 'v_b'])))
 
     bigraphs = {
         'a0': a0,
@@ -406,65 +450,65 @@ def test_bigraphs(
         's0': Merge([
             a0,
             a1,
-            Control('Mail').nest(
-                Control('1'))]),
+            Node(ctrl['Mail']).nest(
+                Node(ctrl['1']))]),
 
-        'phi': Control('Mail').nest(
+        'phi': Node(ctrl['Mail']).nest(
             Merge([
-                Control({'M': 2}, ['a', 'v']),
+                Node(ctrl['M'], ['a', 'v']),
                 id_node]))}
 
     reactions = {
         'snd': Reaction(
             Merge([
-                Control({'A': 1}, ['a0']).nest(
-                    Control('Snd').nest(
+                Node(ctrl['A'], ['a0']).nest(
+                    Node(ctrl['Snd']).nest(
                         Merge([
-                            Control({'M': 2}, ['a1', 'v']),
+                            Node(ctrl['M'], ['a1', 'v']),
                             id_node]))),
-                Control('Mail')]),
+                Node(ctrl['Mail'])]),
             Merge([
-                Control({'A': 1}, ['a0']),
-                Control('Mail').nest(
+                Node(ctrl['A'], ['a0']),
+                Node(ctrl['Mail']).nest(
                     Merge([
-                        Control({'M': 2}, ['a1', 'v']),
+                        Node(ctrl['M'], ['a1', 'v']),
                         id_node]))])),
 
         'ready': Reaction(
             Merge([
-                Control({'A': 1}, ['a']).nest(
-                    Control('Ready')),
-                Control('Mail').nest(
+                Node(ctrl['A'], ['a']).nest(
+                    Node(ctrl['Ready'])),
+                Node(ctrl['Mail']).nest(
                     Merge([
-                        Control({'M': 2}, ['a', 'v']),
+                        Node(ctrl['M'], ['a', 'v']),
                         id_node]))]),
             Merge([
-                Control({'A': 1}, ['a']),
-                Control('Mail'),
+                Node(ctrl['A'], ['a']),
+                Node(ctrl['Mail']),
                 Edge('v')])),
 
         'lambda': Reaction(
-            Control({'A': 1}, ['a']).nest(
-                Control('Fun')),
-            Control({'A': 1}, ['a'])),
+            Node(ctrl['A'], ['a']).nest(
+                Node(ctrl['Fun'])),
+            Node(ctrl['A'], ['a'])),
 
         'new': Reaction(
-            Control({'A': 1}, ['a0']).nest(
+            Node(ctrl['A'], ['a0']).nest(
                 Merge([
-                    Control('New').nest(
+                    Node(ctrl['New']).nest(
                         Merge([
-                            Control({'A\'': 1}, ['a1']),
+                            Node(ctrl['A\''], ['a1']),
                             id_node])),
                     id_node])),
             Merge([
-                Control({'A': 1}, ['a0']).nest(
+                Node(ctrl['A'], ['a0']).nest(
                     Merge([id_node, id_node])),
-                Control({'A': 1}, ['a1']).nest(
+                Node(ctrl['A'], ['a1']).nest(
                     Merge([id_node, id_node]))]),
             instantiation=[1, 2, 0, 2])}
             
     system = BigraphicalReactiveSystem(
-        controls=controls,
+        controls=ctrl,
         bigraphs=bigraphs,
         reactions=reactions,
         system={

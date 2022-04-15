@@ -2,7 +2,7 @@ import fire
 from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
 
-from bigraph import Bigraph, Control, Edge, Parallel, Merge, Reaction
+from bigraph import Bigraph, Control, Node, Edge, Parallel, Merge, Reaction
 
 
 examples = {
@@ -89,8 +89,10 @@ class BigVisitor(NodeVisitor):
         if len(edge_names) > 0:
             edge_names = edge_names[0]
 
-        return Control(
-            {visit[0]: len(edge_names)},
+        return Node(
+            Control(
+                label=visit[0],
+                arity=len(edge_names)),
             edge_names)
 
     def visit_control_name(self, node, visit):

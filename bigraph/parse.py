@@ -10,7 +10,7 @@ examples = {
     'edge': 'Aa{bbb}',
     'edges': 'Aa{bbb, ccc, ddd}',
     'simple_control': 'ctrl B = 0;',
-    'atomic_fun_control': 'atomic fun ctrl B(m,n) = 0;',
+    'atomic_fun_control': 'atomic fun ctrl B(m,n,o) = 0;',
     'nest': 'Aa.Bb.Ccc',
     'merge': 'A | B | C',
     'parallel': 'A || B || C',
@@ -27,7 +27,7 @@ big = Grammar(
     """
     statement = control_declare / expression
 
-    control_declare = atomic? fun? ctrl control_invoke equals number semicolon
+    control_declare = atomic? fun? ctrl control_invoke equals number
     control_invoke = control_label control_params?
     control_params = paren_left edge_commas paren_right
 
@@ -72,6 +72,35 @@ class BigVisitor(NodeVisitor):
 
     def visit_control_declare(self, node, visit):
         import ipdb; ipdb.set_trace()
+        atomic = bool(visit[0]['visit'])
+        fun = bool(visit[1]['visit'])
+        control = visit[3]['visit']
+        label = control[0]
+        params = control[1]['visit']
+        if params:
+            params = params[0]
+        arity = visit[5]
+
+        return Control(
+            label=label,
+            arity=arity,
+            atomic=atomic,
+            fun=tuple(params))
+
+    def visit_atomic(self, node, visit):
+        return node.text
+
+    def visit_fun(self, node, visit):
+        return node.text
+
+    def visit_control_params(self, node, visit):
+        params = [visit[1]['visit'][0]]
+        tail = visit[1]['visit'][1]['visit']
+        params.extend(tail)
+        return params
+
+    def visit_number(self, node, visit):
+        return node.text
 
     def visit_expression(self, node, visit):
         return visit[0]

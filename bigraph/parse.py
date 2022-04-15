@@ -8,6 +8,7 @@ from bigraph import Bigraph, Control, Node, Edge, Parallel, Merge, Reaction
 examples = {
     'control': 'Aaa',
     'edge': 'Aa{bbb}',
+    'multiple_comments': "#yellow \n#what \nAa{bbb}",
     'edges': 'Aa{bbb, ccc, ddd}',
     'simple_control': 'ctrl B = 0',
     'atomic_fun_control': 'atomic fun ctrl B(m,n,o) = 0',
@@ -25,7 +26,7 @@ examples = {
 
 big = Grammar(
     """
-    statement = control_declare / expression
+    statement = comment* (control_declare / expression)
 
     control_declare = atomic? fun? ctrl control_invoke equals number
     control_invoke = control_label control_params?
@@ -48,6 +49,8 @@ big = Grammar(
     fun = "fun" ws
     ctrl = "ctrl" ws
     equals = ws "=" ws
+    comment = octothorpe not_newline newline
+    octothorpe = "#"
     number = digit+ (dot digit+)?
     digit = ~r"[0-9]"
     control_start = ~r"[A-Z0-9]"
@@ -62,13 +65,15 @@ big = Grammar(
     dot = "."
     semicolon = ws ";" ws
     name_tail = ~r"[-_'A-Za-z]"*
+    not_newline = ~r"[^\\n\\r]"*
+    newline = ~"[\\n\\r]+"
     ws = ~"\s*"
     """)
 
 
 class BigVisitor(NodeVisitor):
     def visit_statement(self, node, visit):
-        return visit[0]
+        return visit[1]['visit'][0]
 
     def visit_control_declare(self, node, visit):
         atomic = bool(visit[0]['visit'])

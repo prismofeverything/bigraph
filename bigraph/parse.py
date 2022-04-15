@@ -9,8 +9,8 @@ examples = {
     'control': 'Aaa',
     'edge': 'Aa{bbb}',
     'edges': 'Aa{bbb, ccc, ddd}',
-    'simple_control': 'ctrl B = 0;',
-    'atomic_fun_control': 'atomic fun ctrl B(m,n,o) = 0;',
+    'simple_control': 'ctrl B = 0',
+    'atomic_fun_control': 'atomic fun ctrl B(m,n,o) = 0',
     'nest': 'Aa.Bb.Ccc',
     'merge': 'A | B | C',
     'parallel': 'A || B || C',
@@ -71,7 +71,6 @@ class BigVisitor(NodeVisitor):
         return visit[0]
 
     def visit_control_declare(self, node, visit):
-        import ipdb; ipdb.set_trace()
         atomic = bool(visit[0]['visit'])
         fun = bool(visit[1]['visit'])
         control = visit[3]['visit']

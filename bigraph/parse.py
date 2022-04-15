@@ -9,6 +9,8 @@ examples = {
     'control': 'Aaa',
     'edge': 'Aa{bbb}',
     'edges': 'Aa{bbb, ccc, ddd}',
+    'simple_control': 'ctrl B = 0;',
+    'atomic_fun_control': 'atomic fun ctrl B(m,n) = 0;',
     'nest': 'Aa.Bb.Ccc',
     'merge': 'A | B | C',
     'parallel': 'A || B || C',
@@ -23,18 +25,32 @@ examples = {
 
 big = Grammar(
     """
+    statement = control_declare / expression
+
+    control_declare = atomic? fun? ctrl control_invoke equals number semicolon
+    control_invoke = control_label control_params?
+    control_params = paren_left edge_commas paren_right
+
     expression = group / merge / parallel / bigraph
     merge = bigraph (merge_pipe bigraph)+
     parallel = bigraph (parallel_pipe bigraph)+
     bigraph = group / nest / control
     group = paren_left expression paren_right
-    nest = control (period bigraph)+
-    control = control_name edge_group?
-    control_name = control_start name_tail
-    control_start = ~r"[A-Z0-9]"
+    nest = control (dot bigraph)+
+    control = control_label edge_group?
+    control_label = control_start name_tail
     edge_group = edge_brace_left edge_name additional_edge* edge_brace_right
+    edge_commas = edge_name additional_edge*
     additional_edge = comma edge_name
     edge_name = edge_start name_tail
+
+    atomic = "atomic" ws
+    fun = "fun" ws
+    ctrl = "ctrl" ws
+    equals = ws "=" ws
+    number = digit+ (dot digit+)?
+    digit = ~r"[0-9]"
+    control_start = ~r"[A-Z0-9]"
     edge_start = ~r"[a-z]"
     edge_brace_left = "{"
     edge_brace_right = "}"
@@ -43,13 +59,20 @@ big = Grammar(
     paren_left = "("
     paren_right = ")"
     comma = "," ws
-    period = "."
+    dot = "."
+    semicolon = ws ";" ws
     name_tail = ~r"[-_'A-Za-z]"*
     ws = ~"\s*"
     """)
 
 
 class BigVisitor(NodeVisitor):
+    def visit_statement(self, node, visit):
+        return visit[0]
+
+    def visit_control_declare(self, node, visit):
+        import ipdb; ipdb.set_trace()
+
     def visit_expression(self, node, visit):
         return visit[0]
 
@@ -84,18 +107,18 @@ class BigVisitor(NodeVisitor):
         return root
 
     def visit_control(self, node, visit):
-        control_name = visit[0]
+        control_label = visit[0]
         edge_names = visit[1]['visit']
         if len(edge_names) > 0:
             edge_names = edge_names[0]
 
         return Node(
             Control(
-                label=visit[0],
+                label=control_label,
                 arity=len(edge_names)),
             edge_names)
 
-    def visit_control_name(self, node, visit):
+    def visit_control_label(self, node, visit):
         return node.text
 
     def visit_edge_group(self, node, visit):
@@ -130,5 +153,6 @@ if __name__ == '__main__':
         bigraph, parse = parse_big(example)
 
         print(f'{key}: {example}')
-        print(bigraph.render())
+        if bigraph:
+            print(bigraph.render())
 

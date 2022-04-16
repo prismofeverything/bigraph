@@ -187,6 +187,11 @@ class Node(Bigraph):
         render = self.label()
         arity = self.arity()
 
+        if self.params:
+            params = ','.join([str(param) for param in self.params])
+            params = f'({params})'
+            render = f'{render}{params}'
+
         if arity > 0:
             names = ', '.join([
                 port or '{}'

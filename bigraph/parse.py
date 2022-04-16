@@ -8,8 +8,10 @@ from bigraph import Bigraph, Control, Node, Edge, Parallel, Merge, Reaction
 examples = {
     'nothing': '',
     'control': 'Aaa',
+    'control-fun': 'Aa(3,5.5,\"what\",11.111)',
     'edge': 'Aa{bbb}',
     'edges': 'Aa{bbb, ccc, ddd}',
+    'fun-edge': 'Aa(3,5.5){bbb,ccc}',
     'multiple-comments': "##yellow \n\n\n#what \n\nAa{bbb}\n#okay",
     'simple-control': 'ctrl B = 0',
     'atomic-fun-control': 'atomic fun ctrl B(m,n,o) = 0',
@@ -31,6 +33,8 @@ big = Grammar(
     big_source = (comment_expression semicolon? newline? comment?)*
     comment_expression = comment* control_expression
     
+    big_expression = big edge_name equals expression
+
     control_expression = control_declare / expression
     control_declare = atomic? fun? ctrl control_invoke equals number
     control_invoke = control_label control_params?
@@ -42,19 +46,29 @@ big = Grammar(
     bigraph = group / nest / control
     group = paren_left expression paren_right
     nest = control (dot bigraph)+
-    control = control_label edge_group?
+    control = control_label param_group? edge_group?
     control_label = control_start name_tail
-    edge_group = edge_brace_left edge_name additional_edge* edge_brace_right
+
+    param_group = paren_left param_commas paren_right
+    param_commas = param_name additional_param*
+    additional_param = comma param_name
+    param_name = number / string
+
+    edge_group = edge_brace_left edge_commas edge_brace_right
     edge_commas = edge_name additional_edge*
     additional_edge = comma edge_name
     edge_name = edge_start name_tail
 
+    big = "big" ws
     atomic = "atomic" ws
     fun = "fun" ws
     ctrl = "ctrl" ws
     equals = ws "=" ws
     comment = octothorpe not_newline newline?
     octothorpe = "#"
+    string = quote not_quote quote
+    quote = "\\""
+    not_quote = ~r"[^\\"]"*
     number = digit+ (dot digit+)?
     digit = ~r"[0-9]"
     control_start = ~r"[A-Z0-9]"
@@ -154,22 +168,41 @@ class BigVisitor(NodeVisitor):
 
     def visit_control(self, node, visit):
         control_label = visit[0]
-        edge_names = visit[1]['visit']
+
+        param_names = visit[1]['visit']
+        if len(param_names) > 0:
+            param_names = param_names[0]
+
+        edge_names = visit[2]['visit']
         if len(edge_names) > 0:
             edge_names = edge_names[0]
 
         return Node(
-            Control(
+            control=Control(
                 label=control_label,
                 arity=len(edge_names)),
-            edge_names)
+            ports=edge_names,
+            params=param_names)
 
     def visit_control_label(self, node, visit):
         return node.text
 
+    def visit_param_group(self, node, visit):
+        param_names = [visit[1]['visit'][0]]
+        additional_params = visit[1]['visit'][1]['visit']
+        param_names.extend(additional_params)
+
+        return param_names
+
+    def visit_additional_param(self, node, visit):
+        return visit[1]
+
+    def visit_param_name(self, node, visit):
+        return visit[0]
+
     def visit_edge_group(self, node, visit):
-        edge_names = [visit[1]]
-        additional_edges = visit[2]['visit']
+        edge_names = [visit[1]['visit'][0]]
+        additional_edges = visit[1]['visit'][1]['visit']
         edge_names.extend(additional_edges)
 
         return edge_names
@@ -179,6 +212,15 @@ class BigVisitor(NodeVisitor):
 
     def visit_edge_name(self, node, visit):
         return node.text
+
+    def visit_string(self, node, visit):
+        return node.text # visit[1]['node'].text
+
+    def visit_number(self, node, visit):
+        if node.text.find('.') >= 0:
+            return float(node.text)
+        else:
+            return int(node.text)
 
     def generic_visit(self, node, visit):
         return {

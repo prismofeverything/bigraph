@@ -6,12 +6,14 @@ from bigraph import Bigraph, Control, Node, Edge, Parallel, Merge, Reaction
 
 
 examples = {
+    'nothing': '',
     'control': 'Aaa',
     'edge': 'Aa{bbb}',
-    'multiple_comments': "#yellow \n#what \nAa{bbb}",
     'edges': 'Aa{bbb, ccc, ddd}',
-    'simple_control': 'ctrl B = 0',
-    'atomic_fun_control': 'atomic fun ctrl B(m,n,o) = 0',
+    'multiple-comments': "##yellow \n\n\n#what \n\nAa{bbb}\n#okay",
+    'simple-control': 'ctrl B = 0',
+    'atomic-fun-control': 'atomic fun ctrl B(m,n,o) = 0',
+    'atomic-controls-comments': '#atomic\natomic ctrl B = 0;\n#other\n#atomic\natomic ctrl C = 3;#yes\n',
     'nest': 'Aa.Bb.Ccc',
     'merge': 'A | B | C',
     'parallel': 'A || B || C',
@@ -26,8 +28,10 @@ examples = {
 
 big = Grammar(
     """
-    statement = comment* (control_declare / expression)
-
+    big_source = (comment_expression semicolon? newline? comment?)*
+    comment_expression = comment* control_expression
+    
+    control_expression = control_declare / expression
     control_declare = atomic? fun? ctrl control_invoke equals number
     control_invoke = control_label control_params?
     control_params = paren_left edge_commas paren_right
@@ -49,7 +53,7 @@ big = Grammar(
     fun = "fun" ws
     ctrl = "ctrl" ws
     equals = ws "=" ws
-    comment = octothorpe not_newline newline
+    comment = octothorpe not_newline newline?
     octothorpe = "#"
     number = digit+ (dot digit+)?
     digit = ~r"[0-9]"
@@ -72,8 +76,17 @@ big = Grammar(
 
 
 class BigVisitor(NodeVisitor):
-    def visit_statement(self, node, visit):
-        return visit[1]['visit'][0]
+    def visit_big_source(self, node, visit):
+        expressions = [
+            node['visit'][0]
+            for node in visit]
+        return expressions
+
+    def visit_comment_expression(self, node, visit):
+        return visit[1]
+
+    def visit_control_expression(self, node, visit):
+        return visit[0]
 
     def visit_control_declare(self, node, visit):
         atomic = bool(visit[0]['visit'])
@@ -173,19 +186,32 @@ class BigVisitor(NodeVisitor):
             'visit': visit}
 
 
-def parse_big(expression):
+def parse_expression(expression):
     parse = big.parse(expression)
     visitor = BigVisitor()
-    bigraph = visitor.visit(parse)
+    bigraphs = visitor.visit(parse)
 
-    return bigraph, parse
+    return bigraphs, parse
+
+
+def parse_big(path):
+    with open(path, 'r') as big:
+        source = big.read()
+
+    bigraphs, parse = parse_expression(source)
+    return bigraphs
 
 
 if __name__ == '__main__':
     for key, example in examples.items():
-        bigraph, parse = parse_big(example)
+        bigraphs, parse = parse_expression(example)
 
         print(f'{key}: {example}')
-        if bigraph:
-            print(bigraph.render())
+        if bigraphs:
+            for bigraph in bigraphs:
+                print(bigraph.render())
+
+    psd_fifo = parse_big('examples/big/PSD_FIFO_ctrl.big')
+    for bigraph in psd_fifo:
+        print(bigraph.render())
 

@@ -1,0 +1,99 @@
+# the probabilisic extension of CAN Semantic Model from "Modelling and Verifying BDI Agents with Bigraphs. Xu et al"
+# intention_step and other non-deterministc rules (e.g. plan selection) are normal rules 
+# the rest of rules are instantenous rules
+# the idea is that when an Reduce is added, 
+# after the applications of all instantenous rules in the background, the next step is produced.  
+
+## CONTROLS
+
+ctrl Check = 0;
+ctrl Del = 0;
+ctrl Add = 0;
+atomic ctrl T = 0; # true
+atomic ctrl F = 0; # false
+
+ctrl Intentions = 0;
+ctrl Intent = 1;
+
+ctrl Desires = 0;
+
+ctrl Beliefs = 0;
+
+# the belief atom is extended with two parameters
+# first is to denote the product, i.e. m'th box
+# the second is the actual belief atoms in the form of string.
+atomic fun ctrl B(m,n) = 0;
+
+ctrl Reduce = 0;
+atomic ctrl ReduceF = 0;
+
+ctrl Act = 0;
+ctrl Pre = 0;
+
+ctrl Event = 1;
+
+# the status token is added.
+atomic ctrl Idle = 0;
+atomic ctrl Active = 0;
+atomic ctrl Success = 0;
+atomic ctrl Failure = 0;
+atomic fun ctrl EId(n) = 0;
+# declarative information for an event in the Desires
+atomic fun ctrl Deadline(n) = 0;
+atomic fun ctrl Progress(n) = 0;
+
+# the Step(n) is introduced to count the step of the agent. 
+atomic fun ctrl Step(n) = 0;
+
+
+ctrl Plans = 0;
+ctrl PlanSet = 1;
+ctrl Plan = 0;
+ctrl PB = 0;
+atomic fun ctrl PId(n) = 0;
+
+# Tree
+ctrl Try = 0; #OR-Like
+ctrl Seq = 0; #AND-Like
+ctrl Cons = 0;
+
+ctrl Conc = 0;
+ctrl L = 0;
+ctrl R = 0;
+
+
+atomic ctrl CheckToken = 0;
+
+ctrl Goal = 0;
+ctrl SC = 0;
+ctrl FC = 0;
+
+# I need to add Nil to get away from some sutble problems for instantenous rules
+# Nil for 1 
+atomic ctrl Nil = 0;
+
+# the sames reason to introduce Trys to get away from some sutble problems for instantenous rules
+# detailed reason can be requested in person
+# Try for special case:
+ctrl Trys = 0;
+
+
+# Synchronisation token
+# this token is to serve as switch-off/on to update the deadline of the events
+atomic ctrl DSync = 0;
+
+
+
+# Preference
+ctrl Preference = 0;
+ctrl Situation = 0;
+atomic fun ctrl PrefWeight(n) = 0;
+atomic ctrl CalculationToken = 0;
+atomic ctrl Original = 0;
+
+
+# stochastic actions
+ctrl Effect = 0;
+atomic fun ctrl EffWeight(n) = 0;
+## END Controls
+

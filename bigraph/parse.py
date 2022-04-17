@@ -2,12 +2,13 @@ import fire
 from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
 
-from bigraph import Bigraph, Control, Node, Edge, Parallel, Merge, Reaction
+from bigraph import Bigraph, Control, Node, Edge, Parallel, Merge, Big, Reaction
 
 
 examples = {
     'nothing': '',
     'control': 'Aaa',
+    'control-one': 'Aa(3)',
     'control-fun': 'Aa(3,5.5,\"what\",11.111)',
     'edge': 'Aa{bbb}',
     'edges': 'Aa{bbb, ccc, ddd}',
@@ -25,7 +26,10 @@ examples = {
     'nest-merge-edge': 'A{a}.(B | C{c, d})',
     'edge-merge': '(M{a, v_a} | Ready.Fun.1)',
     'partial': 'A{a}.Snd.(M{a, v_a} | Ready.Fun.1)',
-    'full': 'A{a}.Snd.(M{a, v_a} | Ready.Fun.1) | A{b}.Snd.M{a, v_b} | Mail.1'}
+    'full': 'A{a}.Snd.(M{a, v_a} | Ready.Fun.1) | A{b}.Snd.M{a, v_b} | Mail.1',
+    'big': 'big full = A{a}.Snd.(M{a, v_a} | Ready.Fun.1) | A{b}.Snd.M{a, v_b} | Mail.1',
+    'box': 'Event{ps1}.(id | EId(1) | Failure)',
+    'big-box': 'big box_1_failure = Event{ps1}.(id | EId(1) | Failure)'}
 
 
 big = Grammar(
@@ -33,13 +37,12 @@ big = Grammar(
     big_source = (comment_expression semicolon? newline? comment?)*
     comment_expression = comment* control_expression
     
-    big_expression = big edge_name equals expression
-
-    control_expression = control_declare / expression
+    control_expression = control_declare / big_expression / expression
     control_declare = atomic? fun? ctrl control_invoke equals number
     control_invoke = control_label control_params?
     control_params = paren_left edge_commas paren_right
 
+    big_expression = big variable_name equals expression
     expression = group / merge / parallel / bigraph
     merge = bigraph (merge_pipe bigraph)+
     parallel = bigraph (parallel_pipe bigraph)+
@@ -55,9 +58,9 @@ big = Grammar(
     param_name = number / string
 
     edge_group = edge_brace_left edge_commas edge_brace_right
-    edge_commas = edge_name additional_edge*
-    additional_edge = comma edge_name
-    edge_name = edge_start name_tail
+    edge_commas = variable_name additional_edge*
+    additional_edge = comma variable_name
+    variable_name = variable_start name_tail
 
     big = "big" ws
     atomic = "atomic" ws
@@ -71,18 +74,18 @@ big = Grammar(
     not_quote = ~r"[^\\"]"*
     number = digit+ (dot digit+)?
     digit = ~r"[0-9]"
-    control_start = ~r"[A-Z0-9]"
-    edge_start = ~r"[a-z]"
+    control_start = ~r"[a-zA-Z0-9]"
+    variable_start = ~r"[a-z]"
     edge_brace_left = "{"
     edge_brace_right = "}"
     merge_pipe = ws "|" ws
     parallel_pipe = ws "||" ws
-    paren_left = "("
-    paren_right = ")"
+    paren_left = ws "(" ws
+    paren_right = ws ")" ws
     comma = "," ws
     dot = "."
     semicolon = ws ";" ws
-    name_tail = ~r"[-_'A-Za-z]"*
+    name_tail = ~r"[-_'A-Za-z0-9]"*
     not_newline = ~r"[^\\n\\r]"*
     newline = ~"[\\n\\r]+"
     ws = ~"\s*"
@@ -117,6 +120,9 @@ class BigVisitor(NodeVisitor):
             arity=arity,
             atomic=atomic,
             fun=tuple(params))
+
+    def visit_big_expression(self, node, visit):
+        return Big(visit[1], visit[3])
 
     def visit_atomic(self, node, visit):
         return node.text
@@ -210,7 +216,7 @@ class BigVisitor(NodeVisitor):
     def visit_additional_edge(self, node, visit):
         return visit[1]
 
-    def visit_edge_name(self, node, visit):
+    def visit_variable_name(self, node, visit):
         return node.text
 
     def visit_string(self, node, visit):

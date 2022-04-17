@@ -250,7 +250,7 @@ class Merge(Bigraph):
         return render
 
 
-class Reaction():
+class Reaction(Bigraph):
     def __init__(self, match, result, instantiation=None, rate=None):
         self.match = match
         self.result = result
@@ -265,6 +265,15 @@ class Reaction():
         if self.instantiation:
             render = render + '\n' + block + '@ ' + str(self.instantiation)
         return render
+
+
+class Big(Bigraph):
+    def __init__(self, label, root):
+        self.label = label
+        self.root = root
+
+    def render(self):
+        return f'big {self.label} = {self.root.render()}'
 
 
 class BigraphicalReactiveSystem():

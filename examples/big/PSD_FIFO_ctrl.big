@@ -97,3 +97,35 @@ ctrl Effect = 0;
 atomic fun ctrl EffWeight(n) = 0;
 ## END Controls
 
+# # # Product Wrapping and Moving Example
+big pack_box_1_wrap_1 = Act.(Pre.1 | Effect.(Add.B(1,"packed") | Del.1 | EffWeight(1)));
+big pack_box_1_wrap_2 = Act.(Pre.1 | Effect.(Add.B(1,"packed") | Del.1 | EffWeight(1)));
+big deliver_box_1_wrap_1 = Act.(Pre.B(1,"packed") | Effect.(Add.B(1,"success") | Del.1 | EffWeight(9)) | Effect.(Add.B(1,"failure") | Del.1 | EffWeight(1)));
+big deliver_box_1_wrap_2 = Act.(Pre.B(1,"packed") | Effect.(Add.B(1,"success") | Del.1 | EffWeight(1)));
+
+big pack_box_2_wrap_1 = Act.(Pre.1 | Effect.(Add.B(2,"packed") | Del.1 | EffWeight(1)));
+big pack_box_2_wrap_2 = Act.(Pre.1 | Effect.(Add.B(2,"packed") | Del.1 | EffWeight(1)));
+big deliver_box_2_wrap_1 = Act.(Pre.B(2,"packed") | Effect.(Add.B(2,"success") | Del.1 | EffWeight(9)) | Effect.(Add.B(2,"failure") | Del.1 | EffWeight(1)));
+big deliver_box_2_wrap_2 = Act.(Pre.B(2,"packed") | Effect.(Add.B(2,"success") | Del.1 | EffWeight(1)));
+
+big two_products =
+        Beliefs.1
+     || Desires.(Event{ps1}.(EId(1) | Deadline(8) | Idle | Progress(0)) | Event{ps3}.(EId(2) | Deadline(12) | Idle | Progress(0)))
+     || Intentions.1
+     || Plans.(
+            PlanSet{ps1}.Plan.(PId(0) | Original | Pre.1 | PB.Goal.(SC.B(1,"success") | Event{ps2}.1 | FC.B(1,"failure")) |  PrefWeight(1))
+          | PlanSet{ps2}.(
+                          Plan.(PId(1) | Original| Pre.B(1,"GEQ3") | PB.(Seq.(pack_box_1_wrap_1 | Cons.deliver_box_1_wrap_1)) | Preference.(Situation.B(1,"GEQ3") | PrefWeight(1)) | PrefWeight(1))
+                        | Plan.(PId(2) | Original| Pre.B(1,"GEQ0") | PB.(Seq.(pack_box_1_wrap_2 | Cons.deliver_box_1_wrap_2)) | Preference.(Situation.B(1,"GEQ0LEQ2") | PrefWeight(1)) | PrefWeight(1)) 
+                        ) 
+          | PlanSet{ps3}.Plan.(PId(0) | Original | Pre.1 | PB.Goal.(SC.B(2,"success") | Event{ps4}.1 | FC.B(2,"failure")) | PrefWeight(1))
+          | PlanSet{ps4}.(
+                          Plan.(PId(1) | Original| Pre.B(2,"GEQ3") | PB.(Seq.(pack_box_2_wrap_1 | Cons.deliver_box_2_wrap_1)) | Preference.(Situation.B(2,"GEQ3") | PrefWeight(1)) | PrefWeight(1))
+                        | Plan.(PId(2) | Original| Pre.B(2,"GEQ0") | PB.(Seq.(pack_box_2_wrap_2 | Cons.deliver_box_2_wrap_2)) | Preference.(Situation.B(2,"GEQ0LEQ2") | PrefWeight(1)) | PrefWeight(1))
+                        ) 
+          );
+
+big box_1_failure = Event{ps1}.(id | EId(1) | Failure);
+big box_1_success = Event{ps1}.(id | EId(1) | Success);
+big box_2_failure = Event{ps4}.(id | EId(2) | Failure);
+big box_2_success = Event{ps4}.(id | EId(2) | Success);

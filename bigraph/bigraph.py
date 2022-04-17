@@ -120,6 +120,15 @@ class Control(Bigraph):
         return render
 
 
+class Edge(Bigraph):
+    def __init__(self, labels):
+        self.labels = labels
+
+    def render(self, parent=False):
+        render = ','.join(self.labels)
+        return '{' + render + '}'
+
+
 class Node(Bigraph):
     def __init__(
             self,
@@ -138,8 +147,9 @@ class Node(Bigraph):
 
         self.control = control or Control()
         self.params = params
-        self.ports = ports or [
-            None for _ in range(self.arity())]
+        self.ports = ports or Edge(labels=[
+            None
+            for _ in range(self.arity())])
         self.sites = sites
 
     @classmethod
@@ -167,13 +177,13 @@ class Node(Bigraph):
         return self.control.arity
 
     def link(self, name):
-        index = none_index(self.ports)
+        index = none_index(self.ports.labels)
 
         if index == -1:
             raise Exception(
                 'cannot link name {name}, all ports have already been named for this node: {self.render()}')
 
-        self.ports[index] = name
+        self.ports.labels[index] = name
 
     def nest(self, inner):
         if self.sites:
@@ -194,8 +204,8 @@ class Node(Bigraph):
 
         if arity > 0:
             names = ', '.join([
-                port or '{}'
-                for port in self.ports])
+                port or '_'
+                for port in self.ports.labels])
             names = '{' + names + '}'
             render = f'{render}{names}'
 
@@ -207,14 +217,6 @@ class Node(Bigraph):
 
 
 id_node = Node()
-
-
-class Edge(Bigraph):
-    def __init__(self, name):
-        self.name = name
-
-    def render(self, parent=False):
-        return '{' + self.name + '}'
 
 
 class Parallel(Bigraph):
@@ -250,20 +252,69 @@ class Merge(Bigraph):
         return render
 
 
+class InGroup(Bigraph):
+    def __init__(
+            self,
+            control='',
+            target='param',
+            negate=False):
+        self.control = control
+        self.target = target
+        self.negate = negate
+
+    def render(self):
+        render = f'{self.control.render()} in {self.target}'
+        if self.negate:
+            render = f'!{render}'
+        return render
+
+
+class Condition(Bigraph):
+    def __init__(
+            self,
+            groups):
+        self.groups = groups
+
+    def render(self):
+        groups = ', '.join([group.render() for group in self.groups])
+        return f'if {groups}'
+
+
 class Reaction(Bigraph):
-    def __init__(self, match, result, instantiation=None, rate=None):
-        self.match = match
-        self.result = result
+    def __init__(
+            self,
+            label=None,
+            params=None,
+            redex=None,
+            arrow=None,
+            reactum=None,
+            instantiation=None,
+            condition=None):
+
+        self.label = label
+        self.params = params
+        self.redex = redex
+        self.arrow = arrow
+        self.reactum = reactum
         self.instantiation = instantiation
-        self.rate = rate
+        self.condition = condition
 
     def render(self, indent=0, parent=False):
         block = ''.join([' ' for _ in range(indent)])
-        rate = '[ ' + str(self.rate) + ' ]' if self.rate else ''
+        params = ','.join(self.params)
+        params = f'({params})' if params else ''
+        arrow_params = ','.join([str(arrow) for arrow in self.arrow])
+        rate = f'[{arrow_params}]' if arrow_params else ''
         arrow = f'-{rate}->'
-        render = block + self.match.render() + '\n' + block + arrow + '\n' + block + self.result.render()
+        render = f'react {self.label}{params} = {self.redex.render()} {arrow} {self.reactum.render()}'
+        if self.params:
+            render = f'fun {render}'
         if self.instantiation:
-            render = render + '\n' + block + '@ ' + str(self.instantiation)
+            instantiation = ','.join([str(instant) for instant in self.instantiation])
+            instantiation = f'[{instantiation}]'
+            render = f'{render}\n{block}@{instantiation}'
+        if self.condition:
+            render = f'{render}\n{block}{self.condition.render()}'
         return render
 
 
@@ -435,16 +486,6 @@ def test_bigraphs(
         'Fun': Control(label='Fun'),
         '1': Control(label='1')}
 
-    # controls = {
-    #     'A': 1,
-    #     'A\'': 1,
-    #     'Mail': 0,
-    #     'M': {'atomic': True, 'ports': 2},
-    #     'Snd': 0,
-    #     'Ready': 0,
-    #     'New': 0,
-    #     'Fun': 0}
-
     a0 = Node(ctrl['A'], ['a']).nest(
         Node(ctrl['Snd']).nest(
             Merge([
@@ -499,7 +540,7 @@ def test_bigraphs(
             Merge([
                 Node(ctrl['A'], ['a']),
                 Node(ctrl['Mail']),
-                Edge('v')])),
+                Edge(['v'])])),
 
         'lambda': Reaction(
             Node(ctrl['A'], ['a']).nest(

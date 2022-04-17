@@ -97,6 +97,415 @@ ctrl Effect = 0;
 atomic fun ctrl EffWeight(n) = 0;
 ## END Controls
 
+# Check contains the formula to be checked against the belief base
+# Check cannot be nested under the Beliefs 
+# as it will cause problems in the rule check_F(n) when declared as instan rules.
+# when there are some same formulas in two different check due to our weak condition check (cannot say which id the param is against)
+# Instead I nest Check under the entity (e.g. plans) for which the check is needed
+# and giving the final check result as child of Check
+# thus no link and no CheckRes control needed
+
+# also the belief check and add/deletion function is extended for B(m,n)
+
+fun react check_T(m,n) =
+    Beliefs.(B(m,n) | id) || Check.(B(m,n) | id)
+    -[1]->
+    Beliefs.(B(m,n) | id) || Check.id;
+
+react check_end =
+    Beliefs.id || Check.1
+    -[1]->
+    Beliefs.id || Check.T;
+
+fun react check_F(m,n) =
+    Beliefs.id || Check.(B(m,n) | id)
+    -[1]->
+    Beliefs.id || Check.F
+    @[0] if !B(m,n) in param;
+
+
+fun react add_notin(m,n) =
+    Beliefs.(Add.(B(m,n) | id) | id)
+    -[1]->
+    Beliefs.(Add.id | B(m,n) | id) @[0,1] if !B(m,n) in param;
+
+fun react add_in(m,n) =
+    Beliefs.(Add.(B(m,n) | id) | B(m,n) | id)
+    -[1]->
+    Beliefs.(Add.id | B(m,n) | id) @[0,1];
+
+react add_end =
+    Beliefs.(Add.1 | id)
+    -[1]->
+    Beliefs.id;
+
+fun react del_in(m,n) =
+    Beliefs.(Del.(B(m,n) | id) | B(m,n) | id)
+    -[1]->
+    Beliefs.(Del.id | id);
+
+fun react del_notin(m,n) =
+    Beliefs.(Del.(B(m,n) | id) | id)
+    -[1]->
+    Beliefs.(Del.id | id) if !B(m,n) in param;
+
+react delete_end =
+    Beliefs.(Del.1 | id)
+    -[1]->
+    Beliefs.id @[0];
+
+
+
+## END Beliefs
+
+## Core actions
+react act_check =
+  Reduce.Act.(Pre.id | id)
+  -[1]->
+  Reduce.Act.(Pre.id | id | Check.id)
+  @[0,1,0] if !Check in param;
+
+# action execution is extended to model the stochastic effects of action
+fun react act_T(n) =
+     Beliefs.id
+  || Reduce.Act.(id | Effect.(Add.id | Del.id | EffWeight(n)) | Check.T)
+  -[n]->
+     Beliefs.(id | Add.id | Del.id)
+  || Nil
+  @[0,2,3];
+
+
+react act_F =
+  Reduce.Act.(id | Check.F)
+  -[1]->
+  ReduceF @[];
+
+
+react reduce_event =
+    Reduce.Event{ps}.1
+ || Plans.(PlanSet{ps}.id | id)
+ -[1]->
+    PlanSet{ps}.id
+ || Plans.(PlanSet{ps}.id | id)
+ @[0,0,1];
+
+
+# Plan Selection
+react select_plan_check =
+    Reduce.PlanSet{ps}.(Plan.(Pre.id | CheckToken | id) | id)
+ -[1]->
+    Reduce.PlanSet{ps}.(Plan.(Pre.id | Check.id | id) | id)
+  @[0,0,1,2];
+
+# plan selection is extended to model the distribution of plan selection based on preference
+# the actual calculation of preference is given later on 
+fun react select_plan_T(n) =
+    Reduce.PlanSet{ps}.(Plan.(Pre.id | Check.T | PB.id | PrefWeight(n) | id) | id)
+  -[n]->
+    Try.(id | Cons.PlanSet{ps}.id) @[1,3];
+
+
+react select_plan_F =
+    Reduce.PlanSet{ps}.id
+  -[1]->
+    ReduceF | {ps} @[]
+    if !CheckToken in param, !Check.T in param;
+
+
+
+# if a plan per-condition is checked F, only reset its plan CheckToken
+react reset_planset =
+  Try.(id | Cons.PlanSet{ps}.(Plan.(Check.F | id) | id))
+  -[1]->
+  Try.(id | Cons.PlanSet{ps}.(Plan.(CheckToken | id) | id));
+
+
+# if a plan precondition is checked T and the preference formula is check F, then reset both CheckToken
+react reset_planset_preference_F =
+  Try.(id | Cons.PlanSet{ps}.(Plan.(Check.T | Preference.(Check.F | id) | id) | id))
+  -[1]->
+  Try.(id | Cons.PlanSet{ps}.(Plan.(CheckToken | Preference.(CheckToken | id) | id) | id));
+
+# if a plan precondition is checked T and the preference formula is check T, then reset both CheckToken and the related CalculationToke for aggregate the preference value
+react reset_planset_preference_T =
+  Try.(id | Cons.PlanSet{ps}.(Plan.(Check.T | Preference.(Check.T | id) | id) | id))
+  -[1]->
+  Try.(id | Cons.PlanSet{ps}.(Plan.(CheckToken | Preference.(CheckToken | CalculationToken | id) | id) | id));  
+
+## use the Original control to stop the over-matching of instan rules
+## problematic again as either all plans needs to have preference structure
+## or having another rule for plans without preference structure
+## atm some plan can have preference, some do not have preference
+## for now i just use Original as a quick solution
+
+
+react init_plansets_preference =
+  Plan.(Original | Pre.id | PB.id | Preference.id | id)
+  -[1]->
+  Plan.(CheckToken | Pre.id | PB.id | Preference.(CheckToken | CalculationToken | id) | id);
+
+
+react init_plansets_none_preference =
+  Plan.(Original | Pre.id | PB.id | id)
+  -[1]->
+  Plan.(CheckToken | Pre.id | PB.id | id)
+  if !Preference in param;  
+
+
+
+
+
+## Sequencing
+react reduce_seq =
+  Reduce.Seq.(id | Cons.id)
+  -[1]->
+  Seq.(Reduce.id | Cons.id);
+
+react seq_succ =
+  Reduce.Seq.(Nil | Cons.id)
+  -[1]->
+  Reduce.id;
+
+# this rule is rather artifical and purely intermedia for better structural update
+# not really reflected in Semantics?
+react seq_fail =
+  Seq.(ReduceF | Cons.id)
+  -[1]->
+  ReduceF @[];
+
+## Failure Recovery
+react try_seq =
+  Reduce.Try.(id | Cons.id)
+  -[1]->
+  Try.(Reduce.id | Cons.id);
+
+# this is where i change Try into Trys
+# as try_seq can be overmatched to keep adding Reduce on the top of Nil
+react try_succ_unique =
+  Try.(Nil | Cons.id)
+  -[1]->
+  Trys.(Nil | Cons.id);
+
+react try_succ =
+  Reduce.Trys.(Nil | Cons.id)
+  -[1]->
+  Nil @[];
+
+react try_failure =
+  Try.(ReduceF | Cons.id)
+  -[1]->
+  Reduce.id;
+
+
+
+# Concurrency
+# all instan rules
+react conc_nil_R=
+  Reduce.Conc.(L.Nil | R.id)
+  -[1]->
+  Conc.(L.Nil | R.Reduce.id);
+
+react conc_nil_L =
+  Reduce.Conc.(L.id | R.Nil)
+  -[1]->
+  Conc.(L.Reduce.id | R.Nil);
+
+react conc_L =
+  Reduce.Conc.(L.id | id)
+  -[1]->
+  Conc.(L.Reduce.id | id);
+
+react conc_R =
+  Reduce.Conc.(R.id | id)
+  -[1]->
+  Conc.(R.Reduce.id | id);
+
+react conc_succ =
+  Reduce.Conc.(L.Nil | R.Nil)
+  -[1]->
+  Nil;
+
+react conc_fail_L =
+  Conc.(L.ReduceF | id)
+  -[1]->
+  ReduceF @[];
+
+react conc_fail_R =
+  Conc.(R.ReduceF | id)
+  -[1]->
+  ReduceF @[];
+
+
+# Declarative goals #
+# all instan rules
+react goal_check =
+  Reduce.Goal.(SC.id | id | FC.id)
+   -[1]->
+  Reduce.Goal.(SC.(id | Check.id) | id | FC.(id | Check.id))
+  @[0,0,1,2,2]
+  if !Check in param;
+
+react goal_suc =
+  Reduce.Goal.(SC.(id | Check.T) | id)
+  -[1]->
+  Nil @[];
+
+react goal_fail =
+  Reduce.Goal.(FC.(id | Check.T) | id)
+  -[1]->
+  Act.(Pre.F | Add.1 | Del.1) @[];
+
+react goal_init =
+  Reduce.Goal.(SC.(id | Check.F) | id | FC.(id | Check.F))
+  -[1]->
+  Goal.(SC.id | Try.(id | Cons.id) | FC.id)
+  @[0,1,1,2]
+  if !Try in param, !Trys in param;
+
+react goal_reduce =
+  Reduce.Goal.(SC.(id | Check.F) | Try.(id | Cons.id) | FC.(id | Check.F))
+  -[1]->
+  Goal.(SC.id | Try.(Reduce.id | Cons.id) | FC.id);
+
+react goal_persist_nil =
+  Reduce.Goal.(SC.(id | Check.F) | Trys.(Nil | Cons.id) | FC.(id | Check.F))
+  -[1]->
+  Goal.(SC.id | Try.(id | Cons.id) | FC.id)
+  @[0,1,1,2];
+
+react goal_persist =
+  Reduce.Goal.(SC.(id | Check.F) | Try.(ReduceF | Cons.id) | FC.(id | Check.F))
+  -[1]->
+  Goal.(SC.id | Try.(id | Cons.id) | FC.id)
+  @[0,1,1,2];
+
+
+# Agent-Level Steps
+
+# equal chance to be produced at any time
+# can be manipulated to estimate how likely a certain product is produced
+# for now put as instan rules as intention selection assumes that external events have become the intentions
+react a_event =
+     Event{ps}.(id | Idle)
+  || Intentions.id
+  -[1]->
+     Event{ps}.(id | Active)
+  || Intentions.(id | Intent{ps}.Event{ps}.1);
+
+
+# local maximium intention selection
+fun react intention_step_test(es) =
+     Event{ps}.(id | EId(es))
+  || Intent{ps}.id
+   -[1]->
+     Event{ps}.(id | EId(es))
+  || Intent{ps}.Reduce.id;
+
+
+
+
+react intention_done_F =
+     Event{ps}.(id | Active)
+  || Intent{ps}.Reduce.ReduceF
+  -[1]->
+     Event{ps}.(id | Failure)
+  || 1;
+
+react intention_done_succ =
+     Event{ps}.(id | Active)
+  || Intent{ps}.Reduce.Nil
+  -[1]->
+     Event{ps}.(id | Success)
+  || 1;
+
+## update rules for dealine
+## after each agent step, the deadline of each event needs to decrease 1
+fun react deadline_minue_one(wds) =
+      Event{ps}.(id | Active | Deadline(wds))
+   -[1]->
+      Event{ps}.(id | Active | Deadline(wds-1) | DSync)
+   if Reduce in ctx, !DSync in param;
+
+
+react remove_dsync_token =
+      Event{ps}.(id | DSync)
+   -[1]->
+      Event{ps}.id
+    if !Reduce in ctx;
+
+
+## relation rules between step time stamp, and packing effects and success/failure of a task
+## if packing still has not occurred before the deadline
+## the failure condition is generated to inform the intention to fail in the next step
+## in case for the intermediate step from step 1 to 0 , it should not be counted as the deadline is reached
+## so !DSync is used 
+fun react dealine_reached(m) =
+       Beliefs.id
+    || Event{ps}.(id | EId(m) | Active | Deadline(0))
+      -[1]->
+       Beliefs.(id | B(m,"failure"))
+    || Event{ps}.(id | EId(m) | Active | Deadline(0))
+    if !B(m,"packed") in param, !B(m,"failure") in param, !DSync in param;
+
+
+## reaction rules to turn the range of deadline into the belief atoms
+
+
+fun react above_three(m,ds) = 
+     Event{ps}.(EId(m) | id | Active | Deadline(ds))
+  || Beliefs.id
+    -[1]-> 
+     Event{ps}.(EId(m) | id | Active | Deadline(ds))
+  || Beliefs.(id | B(m,"GEQ3"))
+  if !B(m,"GEQ3") in param;
+
+fun react zero_to_two(m,ds) = 
+     Event{ps}.(EId(m) | id | Active | Deadline(ds))
+  || Beliefs.id
+    -[1]-> 
+     Event{ps}.(EId(m) | id | Active | Deadline(ds))
+  || Beliefs.(id | B(m,"GEQ0LEQ2"))
+  if !B(m,"GEQ0LEQ2") in param;
+
+fun react above_zero(m,ds) = 
+     Event{ps}.(EId(m) | id | Active | Deadline(ds))
+  || Beliefs.id
+    -[1]-> 
+     Event{ps}.(EId(m) | id | Active | Deadline(ds))
+  || Beliefs.(id | B(m,"GEQ0"))
+  if !B(m,"GEQ0") in param;
+
+
+fun react range_meet(m) = 
+     Event{ps}.(EId(m) | id | Active | Deadline(2))
+  || Beliefs.(id | B(m,"GEQ3"))
+    -[1]->
+     Event{ps}.(EId(m) | id | Active | Deadline(2))
+  || Beliefs.id;  
+
+
+# preference check and calculation reaction rule
+# the new plan structure
+# Plan.(Pre.id | PB.id | PrefWeight(prefw) | Preference.(CheckToken | CalculationToken | Situation.id | PrefWeight(n)) | id)
+
+
+react preference_plan_check =
+    Plan.(id | Check.T | Preference.(CheckToken | Situation.id | id))
+ -[1]->
+    Plan.(id | Check.T | Preference.(Situation.id | Check.id | id))
+    @[0,1,1,2];
+    
+# atm, the aggregration method is to sum up the Check.T's PrefWeight
+fun react preference_calculation(m,n) =
+    Plan.(id | Check.T | Preference.(id | Check.T | PrefWeight(m) | CalculationToken) | PrefWeight(n))
+ -[1]->
+    Plan.(id | Check.T | Preference.(id | Check.T | PrefWeight(m)) | PrefWeight(m+n));     
+
+
+# the new action structure
+# Action.(Pre.id | Effect.(Add.id | Del.id | EffWeight(n)) | id)
+
+
 # # # Product Wrapping and Moving Example
 big pack_box_1_wrap_1 = Act.(Pre.1 | Effect.(Add.B(1,"packed") | Del.1 | EffWeight(1)));
 big pack_box_1_wrap_2 = Act.(Pre.1 | Effect.(Add.B(1,"packed") | Del.1 | EffWeight(1)));
@@ -129,3 +538,4 @@ big box_1_failure = Event{ps1}.(id | EId(1) | Failure);
 big box_1_success = Event{ps1}.(id | EId(1) | Success);
 big box_2_failure = Event{ps4}.(id | EId(2) | Failure);
 big box_2_success = Event{ps4}.(id | EId(2) | Success);
+

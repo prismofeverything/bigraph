@@ -2,16 +2,17 @@ import fire
 from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
 
-from bigraph import Bigraph, Control, Node, Edge, Parallel, Merge, Big, Reaction
+from bigraph import Bigraph, Control, Node, Edge, Parallel, Merge, Big, InGroup, Condition, Reaction
 
 
 examples = {
     'nothing': '',
     'control': 'Aaa',
-    'control-one': 'Aa(3)',
+    'control-one': 'Aa(3,4,5,6)',
     'control-fun': 'Aa(3,5.5,\"what\",11.111)',
     'edge': 'Aa{bbb}',
     'edges': 'Aa{bbb, ccc, ddd}',
+    'open-edge': 'ReduceF | {ps}',
     'fun-edge': 'Aa(3,5.5){bbb,ccc}',
     'multiple-comments': "##yellow \n\n\n#what \n\nAa{bbb}\n#okay",
     'simple-control': 'ctrl B = 0',
@@ -29,7 +30,10 @@ examples = {
     'full': 'A{a}.Snd.(M{a, v_a} | Ready.Fun.1) | A{b}.Snd.M{a, v_b} | Mail.1',
     'big': 'big full = A{a}.Snd.(M{a, v_a} | Ready.Fun.1) | A{b}.Snd.M{a, v_b} | Mail.1',
     'box': 'Event{ps1}.(id | EId(1) | Failure)',
-    'big-box': 'big box_1_failure = Event{ps1}.(id | EId(1) | Failure)'}
+    'big-box': 'big box_1_failure = Event{ps1}.(id | EId(1) | Failure)',
+    'elaborate-reaction': 'react goal_check =\n Reduce.Goal.(SC.id | id | FC.id) \n-[1]-> \n Reduce.Goal.(SC.(id | Check.id) | id | FC.(id | Check.id))  \n@[0,0,1,2,2]     \n  if Check in param, !Goal in ctx, !Failure in param',
+    'elimination': 'react seq_fail =\n  Seq.(ReduceF | Cons.id)\n  -[1]->\n  ReduceF @[];\n',
+    'plan': 'fun react preference_calculation(m,n) =\n    Plan.(id | Check.T | Preference.(id | Check.T | PrefWeight(m) | CalculationToken) | PrefWeight(n))\n -[1]->\n    Plan.(id | Check.T | Preference.(id | Check.T | PrefWeight(m)) | PrefWeight(m+n))'}
 
 
 big = Grammar(
@@ -37,31 +41,48 @@ big = Grammar(
     big_source = (comment_expression semicolon? newline? comment?)*
     comment_expression = comment* control_expression
     
-    control_expression = control_declare / big_expression / expression
+    control_expression = control_declare / big_expression / react_expression / expression
     control_declare = atomic? fun? ctrl control_invoke equals number
     control_invoke = control_label control_params?
     control_params = paren_left edge_commas paren_right
+
+    react_expression = fun? react variable_name param_group? equals expression arrow expression instantiation? condition?
+    arrow = ws dash square_params? dash arrowhead
+    instantiation = at square_params ws
+    condition = if in_group (comma in_group)*
+    in_group = bang? bigraph in (ctx / param)
 
     big_expression = big variable_name equals expression
     expression = group / merge / parallel / bigraph
     merge = bigraph (merge_pipe bigraph)+
     parallel = bigraph (parallel_pipe bigraph)+
-    bigraph = group / nest / control
+    bigraph = group / nest / control / edge_group
     group = paren_left expression paren_right
     nest = control (dot bigraph)+
     control = control_label param_group? edge_group?
     control_label = control_start name_tail
 
+    square_params = square_left param_commas? square_right
     param_group = paren_left param_commas paren_right
     param_commas = param_name additional_param*
     additional_param = comma param_name
-    param_name = number / string
+    param_name = number / string / variable_name
 
     edge_group = edge_brace_left edge_commas edge_brace_right
     edge_commas = variable_name additional_edge*
     additional_edge = comma variable_name
     variable_name = variable_start name_tail
 
+    if = ws "if" ws
+    in = ws "in" ws
+    param = "param" ws
+    ctx = "ctx" ws
+    at = ws "@"
+    bang = ws "!" ws
+    dash = "-"
+    plus = "+"
+    arrowhead = ">" ws
+    react = "react" ws
     big = "big" ws
     atomic = "atomic" ws
     fun = "fun" ws
@@ -82,10 +103,12 @@ big = Grammar(
     parallel_pipe = ws "||" ws
     paren_left = ws "(" ws
     paren_right = ws ")" ws
+    square_left = ws "[" ws
+    square_right = ws "]" ws
     comma = "," ws
     dot = "."
     semicolon = ws ";" ws
-    name_tail = ~r"[-_'A-Za-z0-9]"*
+    name_tail = ~r"[-+_'A-Za-z0-9]"*
     not_newline = ~r"[^\\n\\r]"*
     newline = ~"[\\n\\r]+"
     ws = ~"\s*"
@@ -121,6 +144,58 @@ class BigVisitor(NodeVisitor):
             atomic=atomic,
             fun=tuple(params))
 
+    def visit_react_expression(self, node, visit):
+        label = visit[2]
+        param_names = visit[3]['visit']
+        if len(param_names) > 0:
+            param_names = param_names[0]
+        redex = visit[5]
+        arrow = visit[6]
+        reactum = visit[7]
+
+        instantiation = visit[8]['visit']
+        if instantiation:
+            instantiation = instantiation[0]
+
+        condition = None
+        condition_visit = visit[9]['visit']
+        if condition_visit:
+            condition = Condition(
+                groups=condition_visit[0])
+
+        return Reaction(
+            label=label,
+            params=param_names,
+            redex=redex,
+            arrow=arrow,
+            reactum=reactum,
+            instantiation=instantiation,
+            condition=condition)
+
+    def visit_arrow(self, node, visit):
+        params = visit[2]['visit'][0]
+        return params
+
+    def visit_instantiation(self, node, visit):
+        return visit[1]
+
+    def visit_condition(self, node, visit):
+        groups = [visit[1]]
+        rest = [
+            inner_visit['visit'][1]
+            for inner_visit in visit[2]['visit']]
+        groups.extend(rest)
+        return groups
+
+    def visit_in_group(self, node, visit):
+        negate = len(visit[0]['visit']) > 0
+        control = visit[1]
+        target = visit[3]['visit'][0]
+        return InGroup(
+            control=control,
+            target=target,
+            negate=negate)
+
     def visit_big_expression(self, node, visit):
         return Big(visit[1], visit[3])
 
@@ -135,6 +210,9 @@ class BigVisitor(NodeVisitor):
         tail = visit[1]['visit'][1]['visit']
         params.extend(tail)
         return params
+
+    def visit_bang(self, node, visit):
+        return True
 
     def visit_number(self, node, visit):
         return node.text
@@ -179,26 +257,37 @@ class BigVisitor(NodeVisitor):
         if len(param_names) > 0:
             param_names = param_names[0]
 
-        edge_names = visit[2]['visit']
-        if len(edge_names) > 0:
-            edge_names = edge_names[0]
+        edge = visit[2]['visit']
+        if len(edge) > 0:
+            edge = edge[0]
+        else:
+            edge = Edge(labels=[])
 
         return Node(
             control=Control(
                 label=control_label,
-                arity=len(edge_names)),
-            ports=edge_names,
+                arity=len(edge.labels)),
+            ports=edge,
             params=param_names)
 
     def visit_control_label(self, node, visit):
         return node.text
 
-    def visit_param_group(self, node, visit):
-        param_names = [visit[1]['visit'][0]]
-        additional_params = visit[1]['visit'][1]['visit']
-        param_names.extend(additional_params)
-
+    def visit_square_params(self, node, visit):
+        param_names = visit[1]['visit']
+        if param_names:
+            param_names = param_names[0]
         return param_names
+
+    def visit_param_group(self, node, visit):
+        param_names = visit[1]
+        return param_names
+
+    def visit_param_commas(self, node, visit):
+        params = [visit[0]]
+        rest = visit[1]['visit']
+        params.extend(rest)
+        return params
 
     def visit_additional_param(self, node, visit):
         return visit[1]
@@ -207,11 +296,11 @@ class BigVisitor(NodeVisitor):
         return visit[0]
 
     def visit_edge_group(self, node, visit):
-        edge_names = [visit[1]['visit'][0]]
+        edge_labels = [visit[1]['visit'][0]]
         additional_edges = visit[1]['visit'][1]['visit']
-        edge_names.extend(additional_edges)
+        edge_labels.extend(additional_edges)
 
-        return edge_names
+        return Edge(labels=edge_labels)
 
     def visit_additional_edge(self, node, visit):
         return visit[1]
@@ -227,6 +316,12 @@ class BigVisitor(NodeVisitor):
             return float(node.text)
         else:
             return int(node.text)
+
+    def visit_ctx(self, node, visit):
+        return 'ctx'
+
+    def visit_param(self, node, visit):
+        return 'param'
 
     def generic_visit(self, node, visit):
         return {

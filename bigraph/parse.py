@@ -2,7 +2,7 @@ import fire
 from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
 
-from bigraph import Bigraph, Control, Node, Edge, Parallel, Merge, Big, InGroup, Condition, Reaction, Range, Assign, Init, System
+from bigraph import Bigraph, Control, Node, Edge, Parallel, Merge, Big, InGroup, Condition, Reaction, Range, Assign, Init, Param, RuleGroup, Rules, Preds, System
 
 
 examples = {
@@ -55,9 +55,9 @@ big = Grammar(
     system_init = init param_name
     system_rules = rules equals square_left system_rule? (comma system_rule)* square_right
     system_rule = deterministic_rule / nondeterministic_rule
+    system_preds = preds equals nondeterministic_rule
     deterministic_rule = paren_left param_commas paren_right
-    nondeterministic_rule = paren_left param_commas paren_right
-    system_preds = cws
+    nondeterministic_rule = squirrel_left param_commas squirrel_right
     type = int / string / float
     range = square_left integer_symbol colon integer_symbol colon integer_symbol square_right
     array = squirrel_left param_commas squirrel_right
@@ -193,21 +193,32 @@ class BigVisitor(NodeVisitor):
         return Init(symbol=visit[1])
 
     def visit_system_rules(self, node, visit):
-        import ipdb; ipdb.set_trace()
+        rule_groups = visit[3]['visit']
+        rest = [
+            rule['visit'][1]
+            for rule in visit[4]['visit']]
+        rule_groups.extend(rest)
+        return Rules(
+            rule_groups=rule_groups)
 
     def visit_system_rule(self, node, visit):
-        import ipdb; ipdb.set_trace()
+        return visit[0]
 
     def visit_deterministic_rule(self, node, visit):
-        # Rule(
-        #     visit[1]
-        import ipdb; ipdb.set_trace()
+        rule = RuleGroup(
+            deterministic=True,
+            rules=visit[1])
+        return rule
 
-    def visit_system_rule(self, node, visit):
-        import ipdb; ipdb.set_trace()
+    def visit_nondeterministic_rule(self, node, visit):
+        rule = RuleGroup(
+            deterministic=False,
+            rules=visit[1])
+        return rule
 
     def visit_system_preds(self, node, visit):
-        import ipdb; ipdb.set_trace()
+        return Preds(
+            rule=visit[2])
 
     def visit_system_type(self, node, visit):
         return node.text.strip()
@@ -374,7 +385,9 @@ class BigVisitor(NodeVisitor):
         return visit[0]
 
     def visit_param_call(self, node, visit):
-        return tuple(visit)
+        return Param(
+            symbol=visit[0],
+            params=visit[1])
 
     def visit_param_commas(self, node, visit):
         params = [visit[0]]

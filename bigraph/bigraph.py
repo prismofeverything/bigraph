@@ -358,7 +358,7 @@ class Assign(Bigraph):
         elif isinstance(self.value, list):
             render = ','.join(self.value)
             render = '{' + render + '}'
-        return f'    {self.assign_type} {self.symbol} = {render}'
+        return f'{self.assign_type} {self.symbol} = {render}'
 
 
 class Init(Bigraph):
@@ -368,7 +368,65 @@ class Init(Bigraph):
         self.symbol = symbol
 
     def render(self):
-        return f'    init {self.symbol}'
+        return f'init {self.symbol}'
+
+
+class Param(Bigraph):
+    def __init__(
+            self,
+            symbol=None,
+            params=()):
+        self.symbol = symbol
+        self.params = params
+
+    def render(self):
+        params = ','.join([
+            param.render() if isinstance(param, Bigraph) else str(param)
+            for param in self.params])
+        return f'{self.symbol}({params})'
+
+
+class RuleGroup(Bigraph):
+    def __init__(
+            self,
+            deterministic=True,
+            rules=()):
+        self.deterministic = deterministic
+        self.rules = rules
+    
+    def render(self):
+        render = ','.join([
+            rule.render() if isinstance(rule, Bigraph) else rule
+            for rule in self.rules])
+        if self.deterministic:
+            render = f'({render})'
+        else:
+            render = '{' + render + '}'
+        return render
+
+
+class Rules(Bigraph):
+    def __init__(
+            self,
+            rule_groups=()):
+        self.rule_groups = rule_groups
+
+    def render(self):
+        rules = ',\n        '.join([
+            group.render()
+            for group in self.rule_groups])
+        render = f'rules = [\n        {rules}\n    ]'
+        return render
+
+
+class Preds(Bigraph):
+    def __init__(
+            self,
+            rule=()):
+        self.rule = rule
+
+    def render(self):
+        return f'preds = {self.rule.render()}'
 
 
 class System(Bigraph):
@@ -382,7 +440,7 @@ class System(Bigraph):
     def render(self):
         render = f'begin {self.system_type}\n'
         declarations = ';\n'.join([
-            declaration.render()
+            '    ' + declaration.render()
             for declaration in self.declarations])
         render = f'{render}{declarations};\nend\n'
         return render

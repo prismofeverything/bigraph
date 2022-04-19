@@ -147,9 +147,14 @@ class Node(Bigraph):
 
         self.control = control or Control()
         self.params = params
-        self.ports = ports or Edge(symbols=[
-            None
-            for _ in range(self.arity())])
+        if ports is None:
+            ports = [
+                None
+                for _ in range(self.arity())]
+        if isinstance(ports, list):
+            self.ports = Edge(symbols=ports)
+        else:
+            self.ports = ports
         self.sites = sites
 
     @classmethod
@@ -284,9 +289,9 @@ class Reaction(Bigraph):
     def __init__(
             self,
             symbol=None,
-            params=None,
+            params=(),
             redex=None,
-            arrow=None,
+            arrow=(),
             reactum=None,
             instantiation=None,
             condition=None):
@@ -634,14 +639,15 @@ def test_bigraphs(
 
     reactions = {
         'snd': Reaction(
-            Merge([
+            symbol='snd',
+            redex=Merge([
                 Node(ctrl['A'], ['a0']).nest(
                     Node(ctrl['Snd']).nest(
                         Merge([
                             Node(ctrl['M'], ['a1', 'v']),
                             id_node]))),
                 Node(ctrl['Mail'])]),
-            Merge([
+            reactum=Merge([
                 Node(ctrl['A'], ['a0']),
                 Node(ctrl['Mail']).nest(
                     Merge([
@@ -649,32 +655,35 @@ def test_bigraphs(
                         id_node]))])),
 
         'ready': Reaction(
-            Merge([
+            symbol='ready',
+            redex=Merge([
                 Node(ctrl['A'], ['a']).nest(
                     Node(ctrl['Ready'])),
                 Node(ctrl['Mail']).nest(
                     Merge([
                         Node(ctrl['M'], ['a', 'v']),
                         id_node]))]),
-            Merge([
+            reactum=Merge([
                 Node(ctrl['A'], ['a']),
                 Node(ctrl['Mail']),
                 Edge(['v'])])),
 
         'lambda': Reaction(
-            Node(ctrl['A'], ['a']).nest(
+            symbol='lambda',
+            redex=Node(ctrl['A'], ['a']).nest(
                 Node(ctrl['Fun'])),
-            Node(ctrl['A'], ['a'])),
+            reactum=Node(ctrl['A'], ['a'])),
 
         'new': Reaction(
-            Node(ctrl['A'], ['a0']).nest(
+            symbol='new',
+            redex=Node(ctrl['A'], ['a0']).nest(
                 Merge([
                     Node(ctrl['New']).nest(
                         Merge([
                             Node(ctrl['A\''], ['a1']),
                             id_node])),
                     id_node])),
-            Merge([
+            reactum=Merge([
                 Node(ctrl['A'], ['a0']).nest(
                     Merge([id_node, id_node])),
                 Node(ctrl['A'], ['a1']).nest(

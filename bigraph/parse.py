@@ -46,6 +46,10 @@ big = Grammar(
     control_invoke = control_label control_params?
     control_params = paren_left edge_commas paren_right
 
+    reactive_system = begin system_type system_declaration end
+    system_type = brs / pbrs / sbrs
+    system_declaration = ws
+
     react_expression = fun? react variable_name param_group? equals expression arrow expression instantiation? condition?
     arrow = ws dash square_params? dash arrowhead
     instantiation = at square_params ws
@@ -73,6 +77,18 @@ big = Grammar(
     additional_edge = comma variable_name
     variable_name = variable_start name_tail
 
+    begin = "begin" ws
+    brs = "brs" ws
+    pbrs = "pbrs" ws
+    sbrs = "sbrs" ws
+    int = "int" ws
+    init = "init" ws
+    string = "string" ws
+    rules = "rules" ws
+    colon = ws ":" ws
+    preds = "preds" ws
+    end = "end" ws
+
     if = ws "if" ws
     in = ws "in" ws
     param = "param" ws
@@ -88,6 +104,7 @@ big = Grammar(
     fun = "fun" ws
     ctrl = "ctrl" ws
     equals = ws "=" ws
+    cws = (ws comment? ws)*
     comment = octothorpe not_newline newline?
     octothorpe = "#"
     string = quote not_quote quote

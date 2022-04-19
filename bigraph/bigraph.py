@@ -91,11 +91,11 @@ class Bigraph():
 class Control(Bigraph):
     def __init__(
             self,
-            label=None,
+            symbol=None,
             arity=0,
             atomic=False,
             fun=()):
-        self.label = label
+        self.symbol = symbol
         self.arity = arity
         self.atomic = atomic
         self.fun = fun
@@ -111,7 +111,7 @@ class Control(Bigraph):
         if self.fun:
             params = ','.join(self.fun)
             params = f'({params})'
-        render = f'ctrl {self.label}{params} = {self.arity}'
+        render = f'ctrl {self.symbol}{params} = {self.arity}'
         if self.fun:
             render = f'fun {render}'
         if self.atomic:
@@ -121,11 +121,11 @@ class Control(Bigraph):
 
 
 class Edge(Bigraph):
-    def __init__(self, labels):
-        self.labels = labels
+    def __init__(self, symbols):
+        self.symbols = symbols
 
     def render(self, parent=False):
-        render = ','.join(self.labels)
+        render = ','.join(self.symbols)
         return '{' + render + '}'
 
 
@@ -147,7 +147,7 @@ class Node(Bigraph):
 
         self.control = control or Control()
         self.params = params
-        self.ports = ports or Edge(labels=[
+        self.ports = ports or Edge(symbols=[
             None
             for _ in range(self.arity())])
         self.sites = sites
@@ -170,20 +170,20 @@ class Node(Bigraph):
 
         return cls(control, params=params)
 
-    def label(self):
-        return self.control.label or 'id'
+    def symbol(self):
+        return self.control.symbol or 'id'
 
     def arity(self):
         return self.control.arity
 
     def link(self, name):
-        index = none_index(self.ports.labels)
+        index = none_index(self.ports.symbols)
 
         if index == -1:
             raise Exception(
                 'cannot link name {name}, all ports have already been named for this node: {self.render()}')
 
-        self.ports.labels[index] = name
+        self.ports.symbols[index] = name
 
     def nest(self, inner):
         if self.sites:
@@ -194,7 +194,7 @@ class Node(Bigraph):
         return self
 
     def render(self, parent=False):
-        render = self.label()
+        render = self.symbol()
         arity = self.arity()
 
         if self.params:
@@ -205,7 +205,7 @@ class Node(Bigraph):
         if arity > 0:
             names = ', '.join([
                 port or '_'
-                for port in self.ports.labels])
+                for port in self.ports.symbols])
             names = '{' + names + '}'
             render = f'{render}{names}'
 
@@ -283,7 +283,7 @@ class Condition(Bigraph):
 class Reaction(Bigraph):
     def __init__(
             self,
-            label=None,
+            symbol=None,
             params=None,
             redex=None,
             arrow=None,
@@ -291,7 +291,7 @@ class Reaction(Bigraph):
             instantiation=None,
             condition=None):
 
-        self.label = label
+        self.symbol = symbol
         self.params = params
         self.redex = redex
         self.arrow = arrow
@@ -306,7 +306,7 @@ class Reaction(Bigraph):
         arrow_params = ','.join([str(arrow) for arrow in self.arrow])
         rate = f'[{arrow_params}]' if arrow_params else ''
         arrow = f'-{rate}->'
-        render = f'react {self.label}{params} = {self.redex.render()} {arrow} {self.reactum.render()}'
+        render = f'react {self.symbol}{params} = {self.redex.render()} {arrow} {self.reactum.render()}'
         if self.params:
             render = f'fun {render}'
         if self.instantiation:
@@ -319,15 +319,76 @@ class Reaction(Bigraph):
 
 
 class Big(Bigraph):
-    def __init__(self, label, root):
-        self.label = label
+    def __init__(self, symbol, root):
+        self.symbol = symbol
         self.root = root
 
     def render(self):
-        return f'big {self.label} = {self.root.render()}'
+        return f'big {self.symbol} = {self.root.render()}'
 
 
-class BigraphicalReactiveSystem():
+class Range(Bigraph):
+    def __init__(
+            self,
+            start='nil',
+            step='il',
+            stop='nil'):
+        self.start = start
+        self.step = step
+        self.stop = stop
+        
+    def render(self):
+        return f'[{self.start}:{self.step}:{self.stop}]'
+
+
+class Assign(Bigraph):
+    def __init__(
+            self,
+            assign_type='nil',
+            symbol='il',
+            value='nil'):
+        self.assign_type = assign_type
+        self.symbol = symbol
+        self.value = value
+        
+    def render(self):
+        render = str(self.value)
+        if isinstance(self.value, Range):
+            render = self.value.render()
+        elif isinstance(self.value, list):
+            render = ','.join(self.value)
+            render = '{' + render + '}'
+        return f'    {self.assign_type} {self.symbol} = {render}'
+
+
+class Init(Bigraph):
+    def __init__(
+            self,
+            symbol=None):
+        self.symbol = symbol
+
+    def render(self):
+        return f'    init {self.symbol}'
+
+
+class System(Bigraph):
+    def __init__(
+            self,
+            system_type='brs',
+            declarations=()):
+        self.system_type = system_type
+        self.declarations = declarations
+        
+    def render(self):
+        render = f'begin {self.system_type}\n'
+        declarations = ';\n'.join([
+            declaration.render()
+            for declaration in self.declarations])
+        render = f'{render}{declarations};\nend\n'
+        return render
+
+
+class BigraphicalReactiveSystem(Bigraph):
     def __init__(
             self,
             controls=None,
@@ -441,20 +502,20 @@ class BigraphicalReactiveSystem():
 
     def render(self, parent=False):
         # controls = '\n'.join([
-        #     f'atomic ctrl {label} = {control["ports"]};' if isinstance(control, dict) and control['atomic'] else f'ctrl {label} = {control};'
-        #     for label, control in self.controls.items()])
+        #     f'atomic ctrl {symbol} = {control["ports"]};' if isinstance(control, dict) and control['atomic'] else f'ctrl {symbol} = {control};'
+        #     for symbol, control in self.controls.items()])
 
         controls = '\n'.join([
             f'{control.render()};'
             for control in self.controls.values()])
 
         reactions = '\n'.join([
-            f'react {label} =\n{reaction.render(2)};\n'
-            for label, reaction in self.reactions.items()])
+            f'react {symbol} =\n{reaction.render(2)};\n'
+            for symbol, reaction in self.reactions.items()])
 
         bigraphs = '\n'.join([
-            f'big {label} =\n  {bigraph.render()};\n'
-            for label, bigraph in self.bigraphs.items()])
+            f'big {symbol} =\n  {bigraph.render()};\n'
+            for symbol, bigraph in self.bigraphs.items()])
 
         declarations = '\n\n'.join([controls, reactions, bigraphs])
 
@@ -476,15 +537,15 @@ def test_bigraphs(
         executable='../bigraph-tools/_build/default/bigrapher/src/bigrapher.exe'):
 
     ctrl = {
-        'A': Control(label='A', arity=1),
-        'A\'': Control(label='A\'', arity=1),
-        'Mail': Control(label='Mail'),
-        'M': Control(label='M', atomic=True, arity=2),
-        'Snd': Control(label='Snd'),
-        'Ready': Control(label='Ready'),
-        'New': Control(label='New'),
-        'Fun': Control(label='Fun'),
-        '1': Control(label='1')}
+        'A': Control(symbol='A', arity=1),
+        'A\'': Control(symbol='A\'', arity=1),
+        'Mail': Control(symbol='Mail'),
+        'M': Control(symbol='M', atomic=True, arity=2),
+        'Snd': Control(symbol='Snd'),
+        'Ready': Control(symbol='Ready'),
+        'New': Control(symbol='New'),
+        'Fun': Control(symbol='Fun'),
+        '1': Control(symbol='1')}
 
     a0 = Node(ctrl['A'], ['a']).nest(
         Node(ctrl['Snd']).nest(

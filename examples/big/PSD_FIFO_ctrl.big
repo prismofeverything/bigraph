@@ -539,3 +539,39 @@ big box_1_success = Event{ps1}.(id | EId(1) | Success);
 big box_2_failure = Event{ps4}.(id | EId(2) | Failure);
 big box_2_success = Event{ps4}.(id | EId(2) | Success);
 
+begin pbrs
+    # two products 1, 2
+    int m = [1:1:2];  
+    string n = {"success", "failure", "packed", "GEQ3", "GEQ0LEQ2", "GEQ0"};
+
+    # cap for the deadlines 
+    int dcap = 20;
+    # deadline excluding 0 for rule deadline_minue_one and intention_step
+    int ds = [1:1:dcap];
+
+    # progress excluding 6 for rule intention_step
+    int prs = [0:1:5];
+
+    # parameters for belief atom range control
+    int geq3 = [3:1:dcap];
+    int geq0leq2 = [0:1:2]; 
+    int geq0 = [0:1:dcap];
+
+    # cap for preference
+    int pcap = 10;
+    int prefs1 = [1:1:pcap];
+    int prefs2 = [1:1:pcap];
+
+    # cap for stochastic effect weight
+    int stocap = 10;
+    int stos = [1:1:stocap];
+
+    init two_products;
+    rules = [
+
+        # deadline decrease synchronisation rules 
+        (deadline_minue_one,what(what)),
+        (think,what,is,not)
+    ];
+    #         preds = {box_1_failure, box_1_success, box_2_failure, box_2_success};
+end

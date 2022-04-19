@@ -38,25 +38,33 @@ examples = {
 
 big = Grammar(
     """
-    big_source = (comment_expression semicolon? newline? comment?)*
-    comment_expression = comment* control_expression
-    
-    control_expression = control_declare / big_expression / react_expression / expression
+    big_source = (cws big_expression semicolon? cws)*
+    big_expression = control_declare / bigraph_expression / react_expression / expression
+
     control_declare = atomic? fun? ctrl control_invoke equals number
     control_invoke = control_label control_params?
     control_params = paren_left edge_commas paren_right
 
     reactive_system = begin system_type system_declaration end
     system_type = brs / pbrs / sbrs
-    system_declaration = ws
+    system_declaration = (cws system_expression semicolon? cws)*
+    system_expression = system_assign / system_init / system_rules / system_preds
+    system_assign = type variable_name equals system_value
+    system_value = range / array / param_name
+    system_init = init param_name
+    system_rules = cws
+    system_preds = cws
+    type = int / string / float
+    range = cws
+    array = cws
 
     react_expression = fun? react variable_name param_group? equals expression arrow expression instantiation? condition?
-    arrow = ws dash square_params? dash arrowhead
-    instantiation = at square_params ws
+    arrow = cws dash square_params? dash arrowhead
+    instantiation = at square_params cws
     condition = if in_group (comma in_group)*
     in_group = bang? bigraph in (ctx / param)
 
-    big_expression = big variable_name equals expression
+    bigraph_expression = big variable_name equals expression
     expression = group / merge / parallel / bigraph
     merge = bigraph (merge_pipe bigraph)+
     parallel = bigraph (parallel_pipe bigraph)+
@@ -70,44 +78,45 @@ big = Grammar(
     param_group = paren_left param_commas paren_right
     param_commas = param_name additional_param*
     additional_param = comma param_name
-    param_name = number / string / variable_name
+    param_name = number / string_name / variable_name
 
     edge_group = edge_brace_left edge_commas edge_brace_right
     edge_commas = variable_name additional_edge*
     additional_edge = comma variable_name
     variable_name = variable_start name_tail
 
-    begin = "begin" ws
-    brs = "brs" ws
-    pbrs = "pbrs" ws
-    sbrs = "sbrs" ws
-    int = "int" ws
-    init = "init" ws
-    string = "string" ws
-    rules = "rules" ws
-    colon = ws ":" ws
-    preds = "preds" ws
-    end = "end" ws
+    begin = "begin" cws
+    brs = "brs" cws
+    pbrs = "pbrs" cws
+    sbrs = "sbrs" cws
+    int = "int" cws
+    init = "init" cws
+    string = "string" cws
+    float = "float" cws
+    rules = "rules" cws
+    colon = cws ":" cws
+    preds = "preds" cws
+    end = "end" cws
 
-    if = ws "if" ws
-    in = ws "in" ws
-    param = "param" ws
-    ctx = "ctx" ws
-    at = ws "@"
-    bang = ws "!" ws
+    if = cws "if" cws
+    in = cws "in" cws
+    param = "param" cws
+    ctx = "ctx" cws
+    at = cws "@"
+    bang = cws "!" cws
     dash = "-"
     plus = "+"
-    arrowhead = ">" ws
-    react = "react" ws
-    big = "big" ws
-    atomic = "atomic" ws
-    fun = "fun" ws
-    ctrl = "ctrl" ws
-    equals = ws "=" ws
+    arrowhead = ">" cws
+    react = "react" cws
+    big = "big" cws
+    atomic = "atomic" cws
+    fun = "fun" cws
+    ctrl = "ctrl" cws
+    equals = cws "=" cws
     cws = (ws comment? ws)*
     comment = octothorpe not_newline newline?
     octothorpe = "#"
-    string = quote not_quote quote
+    string_name = quote not_quote quote
     quote = "\\""
     not_quote = ~r"[^\\"]"*
     number = digit+ (dot digit+)?
@@ -116,15 +125,15 @@ big = Grammar(
     variable_start = ~r"[a-z]"
     edge_brace_left = "{"
     edge_brace_right = "}"
-    merge_pipe = ws "|" ws
-    parallel_pipe = ws "||" ws
-    paren_left = ws "(" ws
-    paren_right = ws ")" ws
-    square_left = ws "[" ws
-    square_right = ws "]" ws
-    comma = "," ws
+    merge_pipe = cws "|" cws
+    parallel_pipe = cws "||" cws
+    paren_left = cws "(" cws
+    paren_right = cws ")" cws
+    square_left = cws "[" cws
+    square_right = cws "]" cws
+    comma = "," cws
     dot = "."
-    semicolon = ws ";" ws
+    semicolon = cws ";" cws
     name_tail = ~r"[-+_'A-Za-z0-9]"*
     not_newline = ~r"[^\\n\\r]"*
     newline = ~"[\\n\\r]+"
@@ -135,14 +144,11 @@ big = Grammar(
 class BigVisitor(NodeVisitor):
     def visit_big_source(self, node, visit):
         expressions = [
-            node['visit'][0]
+            node['visit'][1]
             for node in visit]
         return expressions
 
-    def visit_comment_expression(self, node, visit):
-        return visit[1]
-
-    def visit_control_expression(self, node, visit):
+    def visit_big_expression(self, node, visit):
         return visit[0]
 
     def visit_control_declare(self, node, visit):
@@ -213,7 +219,7 @@ class BigVisitor(NodeVisitor):
             target=target,
             negate=negate)
 
-    def visit_big_expression(self, node, visit):
+    def visit_bigraph_expression(self, node, visit):
         return Big(visit[1], visit[3])
 
     def visit_atomic(self, node, visit):
@@ -339,6 +345,9 @@ class BigVisitor(NodeVisitor):
 
     def visit_param(self, node, visit):
         return 'param'
+
+    def visit_cws(self, node, visit):
+        return '#'
 
     def generic_visit(self, node, visit):
         return {

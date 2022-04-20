@@ -121,6 +121,8 @@ class Control(Bigraph):
 
 
 class Edge(Bigraph):
+    # TODO: link all edges together?
+
     def __init__(self, symbols):
         self.symbols = symbols
 
@@ -623,19 +625,19 @@ def test_bigraphs(
             Node(ctrl['M'], ['a', 'v_b'])))
 
     bigraphs = {
-        'a0': a0,
-        'a1': a1,
+        'a0': Big(symbol='a0', root=a0),
+        'a1': Big(symbol='a1', root=a1),
 
-        's0': Merge([
+        's0': Big(symbol='s0', root=Merge([
             a0,
             a1,
             Node(ctrl['Mail']).nest(
-                Node(ctrl['1']))]),
+                Node(ctrl['1']))])),
 
-        'phi': Node(ctrl['Mail']).nest(
+        'phi': Big(symbol='phi', root=Node(ctrl['Mail']).nest(
             Merge([
                 Node(ctrl['M'], ['a', 'v']),
-                id_node]))}
+                id_node])))}
 
     reactions = {
         'snd': Reaction(

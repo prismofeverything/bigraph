@@ -523,11 +523,8 @@ if __name__ == '__main__':
         print(f'{key}: {example}')
         if bigraph:
             print(bigraph.render())
-            # for bigraph in bigraphs:
-            #     print(bigraph.render())
 
     psd_fifo = parse_big('examples/big/PSD_FIFO_ctrl.big')
+
     print(psd_fifo.render())
-    # for bigraph in psd_fifo:
-    #     print(bigraph.render())
 

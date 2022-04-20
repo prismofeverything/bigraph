@@ -2,7 +2,7 @@ import fire
 from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
 
-from bigraph import Bigraph, Control, Node, Edge, Parallel, Merge, Big, InGroup, Condition, Reaction, Range, Assign, Init, Param, RuleGroup, Rules, Preds, System
+from bigraph import Bigraph, Control, Node, Edge, Parallel, Merge, Big, InGroup, Condition, Reaction, Range, Assign, Init, Param, RuleGroup, Rules, Preds, System, BigraphicalReactiveSystem
 
 
 examples = {
@@ -154,7 +154,31 @@ class BigVisitor(NodeVisitor):
             node['visit'][1]
             for node in visit]
 
-        return expressions
+        if len(expressions) == 1:
+            return expressions[0]
+
+        controls = {}
+        bigraphs = {}
+        reactions = {}
+        system = None
+
+        for expression in expressions:
+            if isinstance(expression, Control):
+                controls[expression.symbol] = expression
+            elif isinstance(expression, Big):
+                bigraphs[expression.symbol] = expression
+            elif isinstance(expression, Reaction):
+                reactions[expression.symbol] = expression
+            elif isinstance(expression, System):
+                system = expression
+
+        brs = BigraphicalReactiveSystem(
+            controls=controls,
+            bigraphs=bigraphs,
+            reactions=reactions,
+            system=system)
+
+        return brs
 
     def visit_big_expression(self, node, visit):
         return visit[0]
@@ -494,14 +518,16 @@ def parse_big(path):
 
 if __name__ == '__main__':
     for key, example in examples.items():
-        bigraphs, parse = parse_expression(example)
+        bigraph, parse = parse_expression(example)
 
         print(f'{key}: {example}')
-        if bigraphs:
-            for bigraph in bigraphs:
-                print(bigraph.render())
+        if bigraph:
+            print(bigraph.render())
+            # for bigraph in bigraphs:
+            #     print(bigraph.render())
 
     psd_fifo = parse_big('examples/big/PSD_FIFO_ctrl.big')
-    for bigraph in psd_fifo:
-        print(bigraph.render())
+    print(psd_fifo.render())
+    # for bigraph in psd_fifo:
+    #     print(bigraph.render())
 

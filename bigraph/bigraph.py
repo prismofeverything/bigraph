@@ -311,7 +311,7 @@ class Reaction(Bigraph):
         arrow_params = ','.join([str(arrow) for arrow in self.arrow])
         rate = f'[{arrow_params}]' if arrow_params else ''
         arrow = f'-{rate}->'
-        render = f'react {self.symbol}{params} = {self.redex.render()} {arrow} {self.reactum.render()}'
+        render = f'react {self.symbol}{params} = \n{block}{self.redex.render()}\n{block}{arrow}\n{block}{self.reactum.render()}'
         if self.params:
             render = f'fun {render}'
         if self.instantiation:
@@ -581,16 +581,16 @@ class BigraphicalReactiveSystem(Bigraph):
             if symbol != '1'])
 
         reactions = '\n'.join([
-            f'{reaction.render(2)};\n'
+            f'{reaction.render(indent=4)};\n'
             for symbol, reaction in self.reactions.items()])
 
         bigraphs = '\n'.join([
-            f'big {symbol} =\n  {bigraph.render()};\n'
+            f'{bigraph.render()};'
             for symbol, bigraph in self.bigraphs.items()])
 
         declarations = '\n\n'.join([controls, reactions, bigraphs])
 
-        system = self.system.render()
+        system = self.system.render() if self.system else ''
 
         big = '\n\n'.join([declarations, system])
         return big

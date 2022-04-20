@@ -427,27 +427,37 @@ class Rules(Bigraph):
 class Preds(Bigraph):
     def __init__(
             self,
-            rule=()):
-        self.rule = rule
+            rules=()):
+        self.rules = rules
 
     def render(self):
-        return f'preds = {self.rule.render()}'
+        return f'preds = {self.rules.render()}'
 
 
 class System(Bigraph):
     def __init__(
             self,
             system_type='brs',
-            declarations=()):
+            init=None,
+            bindings=(),
+            rules=None,
+            preds=()):
+
         self.system_type = system_type
-        self.declarations = declarations
+        self.init = init
+        self.bindings = bindings
+        self.rules = rules or Rules(rule_groups=[])
+        self.preds = preds
         
     def render(self):
         render = f'begin {self.system_type}\n'
-        declarations = ';\n'.join([
-            '    ' + declaration.render()
-            for declaration in self.declarations])
-        render = f'{render}{declarations};\nend\n'
+        init = self.init.render() if self.init else ''
+        bindings = ';\n'.join([
+            '    ' + binding.render()
+            for binding in self.bindings]) + ';\n' if self.bindings else ''
+        rules = self.rules.render()
+        preds = self.preds.render() + ';\n' if self.preds else ''
+        render = f'begin {self.system_type}\n{bindings}    {init};\n    {rules};\n    {preds}end\n'
         return render
 
 
@@ -571,7 +581,6 @@ class BigraphicalReactiveSystem(Bigraph):
             if symbol != '1'])
 
         reactions = '\n'.join([
-            # f'react {symbol} =\n{reaction.render(2)};\n'
             f'{reaction.render(2)};\n'
             for symbol, reaction in self.reactions.items()])
 
@@ -581,15 +590,7 @@ class BigraphicalReactiveSystem(Bigraph):
 
         declarations = '\n\n'.join([controls, reactions, bigraphs])
 
-        rules = ', '.join(self.reactions.keys())
-        predicates = ', '.join(self.system.get('preds', []))
-
-        system = '\n'.join([
-            'begin brs',
-            f'  init {self.system["init"]};',
-            f'  rules = [ {{{rules}}} ];',
-            f'  preds = {{ {predicates} }};',
-            'end'])
+        system = self.system.render()
 
         big = '\n\n'.join([declarations, system])
         return big
@@ -689,24 +690,39 @@ def test_bigraphs(
                     Merge([id_node, id_node]))]),
             instantiation=[1, 2, 0, 2])}
             
-    system = BigraphicalReactiveSystem(
+    init = Init(symbol='s0')
+    rules = Rules(rule_groups=[
+        RuleGroup(
+            deterministic=False,
+            rules=['snd', 'ready', 'lambda', 'new'])])
+    preds = Preds(rules=RuleGroup(
+        deterministic=False,
+        rules=['phi']))
+    bindings = []
+
+    system = System(
+        system_type='brs',
+        bindings=bindings,
+        init=init,
+        rules=rules,
+        preds=preds)
+
+    reactive_system = BigraphicalReactiveSystem(
         controls=ctrl,
         bigraphs=bigraphs,
         reactions=reactions,
-        system={
-            'init': 's0',
-            'preds': ['phi']},
+        system=system,
         executable=executable,
         path='out/test/execute')
 
-    result = system.simulate(
+    result = reactive_system.simulate(
        format='json',
        console=True)
 
        # format='svg',
        # console=True)
 
-    print(system.render())
+    print(reactive_system.render())
     print('\n\n\n')
     print('TRANSITIONS:')
     for transition in result:

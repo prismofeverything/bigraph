@@ -34,7 +34,7 @@ examples = {
     'elaborate-reaction': 'react goal_check =\n Reduce.Goal.(SC.id | id | FC.id) \n-[1]-> \n Reduce.Goal.(SC.(id | Check.id) | id | FC.(id | Check.id))  \n@[0,0,1,2,2]     \n  if Check in param, !Goal in ctx, !Failure in param',
     'elimination': 'react seq_fail =\n  Seq.(ReduceF | Cons.id)\n  -[1]->\n  ReduceF @[];\n',
     'plan': 'fun react preference_calculation(m,n) =\n    Plan.(id | Check.T | Preference.(id | Check.T | PrefWeight(m) | CalculationToken) | PrefWeight(n))\n -[1]->\n    Plan.(id | Check.T | Preference.(id | Check.T | PrefWeight(m)) | PrefWeight(m+n))',
-    'reactive-systemm': 'begin pbrs\n\n   int m = [1:1:2];           int dcap = 20;\n\n  end  #### here we go\n#ffffffffff'}
+    'reactive-system': 'begin pbrs\n\n   int m = [1:1:2];           int dcap = 20;\n\n  end  #### here we go\n#ffffffffff'}
 
 
 big = Grammar(
@@ -163,9 +163,26 @@ class BigVisitor(NodeVisitor):
         system_type = visit[1]
         declarations = visit[2]
 
+        bindings = []
+        init = None
+        rules = None
+        preds = None
+        for declaration in declarations:
+            if isinstance(declaration, Assign):
+                bindings.append(declaration)
+            elif isinstance(declaration, Init):
+                init = declaration
+            elif isinstance(declaration, Rules):
+                rules = declaration
+            elif isinstance(declaration, Preds):
+                preds = declaration
+
         return System(
             system_type=system_type,
-            declarations=declarations)
+            bindings=bindings,
+            init=init,
+            rules=rules,
+            preds=preds)
 
     def visit_system_declaration(self, node, visit):
         declarations = [
@@ -218,7 +235,7 @@ class BigVisitor(NodeVisitor):
 
     def visit_system_preds(self, node, visit):
         return Preds(
-            rule=visit[2])
+            rules=visit[2])
 
     def visit_system_type(self, node, visit):
         return node.text.strip()

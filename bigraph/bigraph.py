@@ -462,6 +462,7 @@ class BigraphicalReactiveSystem(Bigraph):
             path='.',
             key='system'):
         self.controls = controls or {}
+        self.controls['1'] = Control(symbol='1')
         self.bigraphs = bigraphs or {}
         self.reactions = reactions or {}
         self.system = system
@@ -564,16 +565,14 @@ class BigraphicalReactiveSystem(Bigraph):
         return result
 
     def render(self, parent=False):
-        # controls = '\n'.join([
-        #     f'atomic ctrl {symbol} = {control["ports"]};' if isinstance(control, dict) and control['atomic'] else f'ctrl {symbol} = {control};'
-        #     for symbol, control in self.controls.items()])
-
         controls = '\n'.join([
             f'{control.render()};'
-            for control in self.controls.values()])
+            for symbol, control in self.controls.items()
+            if symbol != '1'])
 
         reactions = '\n'.join([
-            f'react {symbol} =\n{reaction.render(2)};\n'
+            # f'react {symbol} =\n{reaction.render(2)};\n'
+            f'{reaction.render(2)};\n'
             for symbol, reaction in self.reactions.items()])
 
         bigraphs = '\n'.join([

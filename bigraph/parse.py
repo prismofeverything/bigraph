@@ -505,20 +505,20 @@ def parse_expression(expression):
     visitor = BigVisitor()
     bigraphs = visitor.visit(parse)
 
-    return bigraphs, parse
+    return bigraphs
 
 
 def parse_big(path):
     with open(path, 'r') as big:
         source = big.read()
 
-    bigraphs, parse = parse_expression(source)
+    bigraphs = parse_expression(source)
     return bigraphs
 
 
 if __name__ == '__main__':
     for key, example in examples.items():
-        bigraph, parse = parse_expression(example)
+        bigraph = parse_expression(example)
 
         print(f'{key}: {example}')
         if bigraph:

@@ -2,7 +2,7 @@ import fire
 from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
 
-from bigraph import Bigraph, Control, Node, Edge, Parallel, Merge, Big, InGroup, Condition, Reaction, Range, Assign, Init, Param, RuleGroup, Rules, Preds, System, BigraphicalReactiveSystem
+from bigraph import Bigraph, Control, Node, Edge, EdgeGroup, Parallel, Merge, Big, InGroup, Condition, Reaction, Range, Assign, Init, Param, RuleGroup, Rules, Preds, System, BigraphicalReactiveSystem
 
 
 examples = {
@@ -37,7 +37,7 @@ examples = {
     'reactive-system': 'begin pbrs\n\n   int m = [1:1:2];           int dcap = 20;\n\n  end  #### here we go\n#ffffffffff'}
 
 
-big = Grammar(
+big_grammar = Grammar(
     """
     big_source = (cws big_expression semicolon? cws)*
     big_expression = control_declare / bigraph_expression / react_expression / reactive_system / expression
@@ -393,17 +393,17 @@ class BigVisitor(NodeVisitor):
         if len(param_names) > 0:
             param_names = param_names[0]
 
-        edge = visit[2]['visit']
-        if len(edge) > 0:
-            edge = edge[0]
+        edges = visit[2]['visit']
+        if len(edges) > 0:
+            edges = edges[0]
         else:
-            edge = Edge(symbols=[])
+            edges = EdgeGroup(edges=[])
 
         return Node(
             control=Control(
                 symbol=control_symbol,
-                arity=len(edge.symbols)),
-            ports=edge,
+                arity=len(edges.edges)),
+            ports=edges,
             params=param_names)
 
     def visit_control_symbol(self, node, visit):
@@ -444,7 +444,7 @@ class BigVisitor(NodeVisitor):
         additional_edges = visit[1]['visit'][1]['visit']
         edge_symbols.extend(additional_edges)
 
-        return Edge(symbols=edge_symbols)
+        return EdgeGroup(edges=[Edge(symbol) for symbol in edge_symbols])
 
     def visit_additional_edge(self, node, visit):
         return visit[1]
@@ -500,8 +500,8 @@ class BigVisitor(NodeVisitor):
             'visit': visit}
 
 
-def parse_expression(expression):
-    parse = big.parse(expression)
+def bigraph(expression):
+    parse = big_grammar.parse(expression)
     visitor = BigVisitor()
     bigraphs = visitor.visit(parse)
 
@@ -512,17 +512,17 @@ def parse_big(path):
     with open(path, 'r') as big:
         source = big.read()
 
-    bigraphs = parse_expression(source)
-    return bigraphs
+    big = bigraph(source)
+    return big
 
 
 if __name__ == '__main__':
     for key, example in examples.items():
-        bigraph = parse_expression(example)
+        big = bigraph(example)
 
         print(f'{key}: {example}')
-        if bigraph:
-            print(bigraph.render())
+        if big:
+            print(big.render())
 
     psd_fifo = parse_big('examples/big/PSD_FIFO_ctrl.big')
 

@@ -34,6 +34,9 @@ class Bigraph():
         # TODO
         return {}
 
+    def find_edges(self):
+        return {}
+
     @classmethod
     def from_spec(cls, spec):
         nodes_state = spec['nodes']
@@ -124,13 +127,46 @@ class Control(Bigraph):
 
 
 class Edge(Bigraph):
+    def __init__(self, symbol):
+        self.symbol = symbol
+        self.nodes = []
+
+    def is_empty(self):
+        return self.symbol is None or self.symbol == ''
+
+    def link(self, node):
+        self.nodes.append(node)
+
+    def find_edges(self):
+        return {
+            self.symbol: self}
+
+    def render(self):
+        return self.symbol
+
+
+class EdgeGroup(Bigraph):
     # TODO: link all edges together?
 
-    def __init__(self, symbols):
-        self.symbols = symbols
+    def __init__(self, edges):
+        if len(edges) > 0 and isinstance(edges[0], str):
+            edges = [
+                Edge(edge) for edge in edges]
+        self.edges = edges
+
+    def find_edges(self):
+        return {
+            edge.symbol: edge
+            for edge in self.edges}
+
+    def find_empty_index(self):
+        for index, edge in enumerate(self.edges):
+            if edge.is_empty():
+                return index
+        return -1
 
     def render(self, parent=False):
-        render = ','.join(self.symbols)
+        render = ','.join([edge.symbol for edge in self.edges])
         return '{' + render + '}'
 
 
@@ -154,13 +190,24 @@ class Node(Bigraph):
         self.params = params
         if ports is None:
             ports = [
-                None
+                Edge(None)
                 for _ in range(self.arity())]
         if isinstance(ports, list):
-            self.ports = Edge(symbols=ports)
+            self.ports = EdgeGroup(edges=ports)
         else:
             self.ports = ports
         self.sites = sites
+
+    def find_edges(self):
+        found = {}
+        for site in self.sites:
+            subedges = site.find_edges()
+            for symbol, edge in subedges.items():
+                if symbol in found:
+                    found[symbol].combine()
+            found.merge()
+        found.merge(self.ports.find_edges())
+        return found
 
     @classmethod
     def from_spec(cls, spec):
@@ -187,13 +234,14 @@ class Node(Bigraph):
         return self.control.arity
 
     def link(self, name):
-        index = none_index(self.ports.symbols)
+        index = self.ports.find_empty_index()
+        # index = none_index(self.ports.edges)
 
         if index == -1:
             raise Exception(
                 'cannot link name {name}, all ports have already been named for this node: {self.render()}')
 
-        self.ports.symbols[index] = name
+        self.ports.edges[index] = Edge(name)
 
     def nest(self, inner):
         if self.sites:
@@ -214,8 +262,8 @@ class Node(Bigraph):
 
         if arity > 0:
             names = ', '.join([
-                port or '_'
-                for port in self.ports.symbols])
+                port.render() if port else '_'
+                for port in self.ports.edges])
             names = '{' + names + '}'
             render = f'{render}{names}'
 
@@ -671,7 +719,7 @@ def test_bigraphs(
             reactum=Merge([
                 Node(ctrl['A'], ['a']),
                 Node(ctrl['Mail']),
-                Edge(['v'])])),
+                EdgeGroup([Edge('v')])])),
 
         'lambda': Reaction(
             symbol='lambda',

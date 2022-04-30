@@ -2,11 +2,13 @@ import fire
 from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
 
-from bigraph import Bigraph, Control, Node, Edge, EdgeGroup, Parallel, Merge, Big, InGroup, Condition, Reaction, Range, Assign, Init, Param, RuleGroup, Rules, Preds, System, BigraphicalReactiveSystem
+from bigraph import Bigraph, Control, Node, One, Id, Edge, EdgeGroup, Parallel, Merge, Big, InGroup, Condition, Reaction, Range, Assign, Init, Param, RuleGroup, Rules, Preds, System, BigraphicalReactiveSystem
 
 
 examples = {
     'nothing': '',
+    'edge-merge': '(M{a, v_a} | Ready.Fun.1)',
+    'elaborate-reaction': 'react goal_check =\n Reduce.Goal.(SC.id | id | FC.id) \n-[1]-> \n Reduce.Goal.(SC.(id | Check.id) | id | FC.(id | Check.id))  \n@[0,0,1,2,2]     \n  if Check in param, !Goal in ctx, !Failure in param',
     'control': 'Aaa',
     'control-one': 'Aa(3,4,5,6)',
     'control-fun': 'Aa(3,5.5,\"what\",11.111)',
@@ -25,7 +27,6 @@ examples = {
     'nest-edge': 'A.B{b, c}',
     'nest-merge': 'A.(B | C) | D',
     'nest-merge-edge': 'A{a}.(B | C{c, d})',
-    'edge-merge': '(M{a, v_a} | Ready.Fun.1)',
     'partial': 'A{a}.Snd.(M{a, v_a} | Ready.Fun.1)',
     'full': 'A{a}.Snd.(M{a, v_a} | Ready.Fun.1) | A{b}.Snd.M{a, v_b} | Mail.1',
     'big': 'big full = A{a}.Snd.(M{a, v_a} | Ready.Fun.1) | A{b}.Snd.M{a, v_b} | Mail.1',
@@ -34,6 +35,11 @@ examples = {
     'elaborate-reaction': 'react goal_check =\n Reduce.Goal.(SC.id | id | FC.id) \n-[1]-> \n Reduce.Goal.(SC.(id | Check.id) | id | FC.(id | Check.id))  \n@[0,0,1,2,2]     \n  if Check in param, !Goal in ctx, !Failure in param',
     'elimination': 'react seq_fail =\n  Seq.(ReduceF | Cons.id)\n  -[1]->\n  ReduceF @[];\n',
     'plan': 'fun react preference_calculation(m,n) =\n    Plan.(id | Check.T | Preference.(id | Check.T | PrefWeight(m) | CalculationToken) | PrefWeight(n))\n -[1]->\n    Plan.(id | Check.T | Preference.(id | Check.T | PrefWeight(m)) | PrefWeight(m+n))',
+    'mod-big': 'PlanSet{ps1}.Plan.(PId(0) | Original | Pre.1 | PB.Goal.(SC.B(1,"success") | Event{ps2}.1 | FC.B(1,"failure")) |  PrefWeight(1))',
+    'mix-big': 'pack_box_1_wrap_1 | Cons.deliver_box_1_wrap_1',
+    'min-big': 'Plan.(PId(1) | Original| Pre.B(1,"GEQ3") | PB.(Seq.(pack_box_1_wrap_1 | Cons.deliver_box_1_wrap_1)) | Preference.(Situation.B(1,"GEQ3") | PrefWeight(1)) | PrefWeight(1))',
+    'mal-big': 'PlanSet{ps2}.(\n                          Plan.(PId(1) | Original| Pre.B(1,"GEQ3") | PB.(Seq.(pack_box_1_wrap_1 | Cons.deliver_box_1_wrap_1)) | Preference.(Situation.B(1,"GEQ3") | PrefWeight(1)) | PrefWeight(1))\n                        | Plan.(PId(2) | Original| Pre.B(1,"GEQ0") | PB.(Seq.(pack_box_1_wrap_2 | Cons.deliver_box_1_wrap_2)) | Preference.(Situation.B(1,"GEQ0LEQ2") | PrefWeight(1)) | PrefWeight(1)) \n                        ) ',
+    'giant-big': '(\n            PlanSet{ps1}.Plan.(PId(0) | Original | Pre.1 | PB.Goal.(SC.B(1,"success") | Event{ps2}.1 | FC.B(1,"failure")) |  PrefWeight(1))\n          | PlanSet{ps2}.(\n                          Plan.(PId(1) | Original| Pre.B(1,"GEQ3") | PB.(Seq.(pack_box_1_wrap_1 | Cons.deliver_box_1_wrap_1)) | Preference.(Situation.B(1,"GEQ3") | PrefWeight(1)) | PrefWeight(1))\n                        | Plan.(PId(2) | Original| Pre.B(1,"GEQ0") | PB.(Seq.(pack_box_1_wrap_2 | Cons.deliver_box_1_wrap_2)) | Preference.(Situation.B(1,"GEQ0LEQ2") | PrefWeight(1)) | PrefWeight(1)) \n                        ) \n          | PlanSet{ps3}.Plan.(PId(0) | Original | Pre.1 | PB.Goal.(SC.B(2,"success") | Event{ps4}.1 | FC.B(2,"failure")) | PrefWeight(1))\n          | PlanSet{ps4}.(\n                          Plan.(PId(1) | Original| Pre.B(2,"GEQ3") | PB.(Seq.(pack_box_2_wrap_1 | Cons.deliver_box_2_wrap_1)) | Preference.(Situation.B(2,"GEQ3") | PrefWeight(1)) | PrefWeight(1))\n                        | Plan.(PId(2) | Original| Pre.B(2,"GEQ0") | PB.(Seq.(pack_box_2_wrap_2 | Cons.deliver_box_2_wrap_2)) | Preference.(Situation.B(2,"GEQ0LEQ2") | PrefWeight(1)) | PrefWeight(1))\n                        ) \n          );',
     'reactive-system': 'begin pbrs\n\n   int m = [1:1:2];           int dcap = 20;\n\n  end  #### here we go\n#ffffffffff'}
 
 
@@ -72,10 +78,10 @@ big_grammar = Grammar(
     expression = group / merge / parallel / bigraph
     merge = bigraph (merge_pipe bigraph)+
     parallel = bigraph (parallel_pipe bigraph)+
-    bigraph = group / nest / control / edge_group
+    bigraph = group / nest / control / edge_group / id / one
     group = paren_left expression paren_right
     nest = control (dot bigraph)+
-    control = control_symbol param_group? edge_group?
+    control = (control_symbol param_group? edge_group?)
     control_symbol = control_start name_tail
 
     square_params = square_left param_commas? square_right
@@ -104,6 +110,8 @@ big_grammar = Grammar(
     preds = "preds" cws
     end = "end" cws
 
+    id = "id" cws
+    one = "1" cws
     if = cws "if" cws
     in = cws "in" cws
     param = "param" cws
@@ -128,7 +136,7 @@ big_grammar = Grammar(
     number = digit+ (dot digit+)?
     integer = digit+
     digit = ~r"[0-9]"
-    control_start = ~r"[a-zA-Z0-9]"
+    control_start = ~r"[a-zA-Z]"
     variable_start = ~r"[a-z]"
     squirrel_left = "{"
     squirrel_right = "}"
@@ -358,6 +366,12 @@ class BigVisitor(NodeVisitor):
 
     def visit_bigraph(self, node, visit):
         return visit[0]
+
+    def visit_id(self, node, visit):
+        return Id()
+
+    def visit_one(self, node, visit):
+        return One()
 
     def visit_merge(self, node, visit):
         merge = [visit[0]]

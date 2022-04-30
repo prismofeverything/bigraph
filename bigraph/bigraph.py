@@ -170,6 +170,16 @@ class EdgeGroup(Bigraph):
         return '{' + render + '}'
 
 
+class Id(Bigraph):
+    def render(self, parent=None):
+        return 'id'
+
+
+class One(Bigraph):
+    def render(self, parent=None):
+        return '1'
+
+
 class Node(Bigraph):
     def __init__(
             self,

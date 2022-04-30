@@ -17,9 +17,10 @@ def none_index(seq):
     return -1
 
 
-class Bigraph():
+class Base():
     def __init__(self, definition=None):
         self.definition = definition
+        self.supernode = None
 
     def __repr__(self):
         return self.render()
@@ -27,8 +28,14 @@ class Bigraph():
     def merge(self, other):
         return Merge([self, other])
 
+    def join(self, supernode):
+        self.supernode = supernode
+
     def get_merge(self):
         return [self]
+
+    def is_site(self):
+        return false
 
     def to_spec(self):
         # TODO
@@ -50,6 +57,7 @@ class Bigraph():
             node['node_id']: Node.from_spec(node['control'])
             for node in nodes_state}
 
+        links = {}
         for link in link_state:
             outer_names = [
                 outer['name']
@@ -61,6 +69,10 @@ class Bigraph():
                 for inner in link['inner']]
             all_inner_names.extend(inner_names)
 
+            link_names = outer_names[:]
+            link_names.extend(inner_names)
+            link_name = link_names[0]
+
             # TODO is this necessary? It seems like it might be desirable
             #   to ensure that each link has only one outer/inner name
             if len(outer_names) > 0:
@@ -70,8 +82,15 @@ class Bigraph():
             else:
                 raise Exception(f'no defined inner or outer names for link {link}')
 
+            if link_name not in links:
+                links[link_name] = Edge(symbol=link_name)
+            edge = links[link_name]
+            links[link_name] = Edge
             for port in link['ports']:
-                nodes[port['node_id']].link(canonical_name)
+                node = nodes[port['node_id']]
+                edge.link(node)
+                node.link(edge)
+                # nodes[port['node_id']].link(canonical_name)
 
         targets = [
             edge['target']
@@ -94,7 +113,36 @@ class Bigraph():
         return root
 
 
-class Control(Bigraph):
+class Bigraph():
+    def __init__(self, nodes, places, links):
+        self.nodes = nodes
+        self.places = places
+        self.links = links
+
+    def fold(self):
+        sites = []
+        roots = []
+        edges = []
+        inner_names = []
+        outer_names = []
+        for over, under in self.places:
+            self.nodes[over].nest(self.nodes[under])
+        for node in self.nodes.values():
+            if node.is_site():
+                sites.append(node)
+            if not node.supernode:
+                roots.append(node)
+        for symbol, link in self.links.items():
+            edge = Edge(symbol=symbol, nodes=[
+                self.nodes[node]
+                for node in link])
+            for node in edge.nodes:
+                node.link(edge)
+            edges.append(edge)
+        
+
+
+class Control(Base):
     def __init__(
             self,
             symbol=None,
@@ -126,10 +174,12 @@ class Control(Bigraph):
         return render
 
 
-class Edge(Bigraph):
-    def __init__(self, symbol):
+class Edge(Base):
+    def __init__(self, symbol=None, nodes=None):
         self.symbol = symbol
-        self.nodes = []
+        self.nodes = nodes or []
+        for node in self.nodes:
+            self.link(node)
 
     def is_empty(self):
         return self.symbol is None or self.symbol == ''
@@ -145,14 +195,18 @@ class Edge(Bigraph):
         return self.symbol
 
 
-class EdgeGroup(Bigraph):
+class EdgeGroup(Base):
     # TODO: link all edges together?
 
-    def __init__(self, edges):
+    def __init__(self, edges=None):
+        edges = edges or []
         if len(edges) > 0 and isinstance(edges[0], str):
             edges = [
-                Edge(edge) for edge in edges]
+                Edge(symbol=edge) for edge in edges]
         self.edges = edges
+
+    def link(self, edge):
+        self.edges.append(edge)
 
     def find_edges(self):
         return {
@@ -166,58 +220,69 @@ class EdgeGroup(Bigraph):
         return -1
 
     def render(self, parent=False):
-        render = ','.join([edge.symbol for edge in self.edges])
-        return '{' + render + '}'
+        if len(self.edges) > 0:
+            if isinstance(self.edges[0], str):
+                import ipdb; ipdb.set_trace()
+            render = ','.join([edge.symbol for edge in self.edges])
+            return '{' + render + '}'
+        else:
+            return ''
 
 
-class Id(Bigraph):
+class Id(Base):
     def render(self, parent=None):
         return 'id'
 
+    def is_site(self):
+        return True
 
-class One(Bigraph):
+
+class One(Base):
     def render(self, parent=None):
         return '1'
 
 
-class Node(Bigraph):
+class Node(Base):
     def __init__(
             self,
             control=None,
             ports=None,
-            sites=None,
-            params=None):
+            params=None,
+            subnodes=None):
+
         ''' create a bigraphical node 
 
         Args:
             control: instance of Control describing this node's ports
             ports: a list of edges into this node. initialized to a list
                 containing `None` for range(arity) if arg is `None`
-            sites: TODO
+            subnodes: TODO
         '''
 
         self.control = control or Control()
         self.params = params
-        if ports is None:
-            ports = [
-                Edge(None)
-                for _ in range(self.arity())]
+        ports = ports or []
         if isinstance(ports, list):
-            self.ports = EdgeGroup(edges=ports)
-        else:
-            self.ports = ports
-        self.sites = sites
+            ports = EdgeGroup(edges=ports)
+        self.ports = ports
+        self.subnodes = subnodes
 
     def find_edges(self):
         found = {}
-        for site in self.sites:
-            subedges = site.find_edges()
+        for subnode in self.subnodes:
+            subedges = subnode.find_edges()
             for symbol, edge in subedges.items():
                 if symbol in found:
                     found[symbol].combine()
             found.merge()
         found.merge(self.ports.find_edges())
         return found
+
+    def find_sites(self):
+        return len([
+            subnode
+            for subnode in self.subnodes
+            if subnode.is_site])
 
     @classmethod
     def from_spec(cls, spec):
@@ -243,22 +308,23 @@ class Node(Bigraph):
     def arity(self):
         return self.control.arity
 
-    def link(self, name):
-        index = self.ports.find_empty_index()
-        # index = none_index(self.ports.edges)
+    def link(self, edge):
+        self.ports.link(edge)
+        # index = self.ports.find_empty_index()
+        # # index = none_index(self.ports.edges)
 
-        if index == -1:
-            raise Exception(
-                'cannot link name {name}, all ports have already been named for this node: {self.render()}')
+        # if index == -1:
+        #     raise Exception(
+        #         'cannot link name {name}, all ports have already been named for this node: {self.render()}')
 
-        self.ports.edges[index] = Edge(name)
+        # self.ports.edges[index] = Edge(name)
 
-    def nest(self, inner):
-        if self.sites:
-            self.sites.merge(inner)
+    def nest(self, subnode):
+        if self.subnodes:
+            self.subnodes.merge(subnode)
         else:
-            self.sites = inner
-
+            self.subnodes = subnode
+        subnode.join(self)
         return self
 
     def render(self, parent=False):
@@ -271,23 +337,20 @@ class Node(Bigraph):
             render = f'{render}{params}'
 
         if arity > 0:
-            names = ', '.join([
-                port.render() if port else '_'
-                for port in self.ports.edges])
-            names = '{' + names + '}'
+            names = self.ports.render()
             render = f'{render}{names}'
 
-        if self.sites:
-            inner = self.sites.render(parent=True)
-            render = f'{render}.{inner}'
+        if self.subnodes:
+            subnode = self.subnodes.render(parent=True)
+            render = f'{render}.{subnode}'
 
         return render
 
 
-id_node = Node()
+id_node = Id()
 
 
-class Parallel(Bigraph):
+class Parallel(Base):
     def __init__(self, parallel):
         self.parallel = parallel or []
 
@@ -301,7 +364,7 @@ class Parallel(Bigraph):
         return render
 
 
-class Merge(Bigraph):
+class Merge(Base):
     def __init__(self, merges):
         self.parts = []
         for merge in merges:
@@ -320,7 +383,7 @@ class Merge(Bigraph):
         return render
 
 
-class InGroup(Bigraph):
+class InGroup(Base):
     def __init__(
             self,
             control='',
@@ -337,7 +400,7 @@ class InGroup(Bigraph):
         return render
 
 
-class Condition(Bigraph):
+class Condition(Base):
     def __init__(
             self,
             groups):
@@ -348,7 +411,7 @@ class Condition(Bigraph):
         return f'if {groups}'
 
 
-class Reaction(Bigraph):
+class Reaction(Base):
     def __init__(
             self,
             symbol=None,
@@ -386,7 +449,7 @@ class Reaction(Bigraph):
         return render
 
 
-class Big(Bigraph):
+class Big(Base):
     def __init__(self, symbol, root):
         self.symbol = symbol
         self.root = root
@@ -395,7 +458,7 @@ class Big(Bigraph):
         return f'big {self.symbol} = {self.root.render()}'
 
 
-class Range(Bigraph):
+class Range(Base):
     def __init__(
             self,
             start='nil',
@@ -409,7 +472,7 @@ class Range(Bigraph):
         return f'[{self.start}:{self.step}:{self.stop}]'
 
 
-class Assign(Bigraph):
+class Assign(Base):
     def __init__(
             self,
             assign_type='nil',
@@ -429,7 +492,7 @@ class Assign(Bigraph):
         return f'{self.assign_type} {self.symbol} = {render}'
 
 
-class Init(Bigraph):
+class Init(Base):
     def __init__(
             self,
             symbol=None):
@@ -439,7 +502,7 @@ class Init(Bigraph):
         return f'init {self.symbol}'
 
 
-class Param(Bigraph):
+class Param(Base):
     def __init__(
             self,
             symbol=None,
@@ -449,12 +512,12 @@ class Param(Bigraph):
 
     def render(self):
         params = ','.join([
-            param.render() if isinstance(param, Bigraph) else str(param)
+            param.render() if isinstance(param, Base) else str(param)
             for param in self.params])
         return f'{self.symbol}({params})'
 
 
-class RuleGroup(Bigraph):
+class RuleGroup(Base):
     def __init__(
             self,
             deterministic=True,
@@ -464,7 +527,7 @@ class RuleGroup(Bigraph):
     
     def render(self):
         render = ','.join([
-            rule.render() if isinstance(rule, Bigraph) else rule
+            rule.render() if isinstance(rule, Base) else rule
             for rule in self.rules])
         if self.deterministic:
             render = f'({render})'
@@ -473,7 +536,7 @@ class RuleGroup(Bigraph):
         return render
 
 
-class Rules(Bigraph):
+class Rules(Base):
     def __init__(
             self,
             rule_groups=()):
@@ -487,7 +550,7 @@ class Rules(Bigraph):
         return render
 
 
-class Preds(Bigraph):
+class Preds(Base):
     def __init__(
             self,
             rules=()):
@@ -497,7 +560,7 @@ class Preds(Bigraph):
         return f'preds = {self.rules.render()}'
 
 
-class System(Bigraph):
+class System(Base):
     def __init__(
             self,
             system_type='brs',
@@ -524,7 +587,7 @@ class System(Bigraph):
         return render
 
 
-class BigraphicalReactiveSystem(Bigraph):
+class BigraphicalReactiveSystem(Base):
     def __init__(
             self,
             controls=None,
@@ -551,7 +614,7 @@ class BigraphicalReactiveSystem(Bigraph):
 
     @classmethod
     def from_spec(cls, spec):
-        state = Bigraph.from_spec(spec['state'])
+        state = Base.from_spec(spec['state'])
         return cls(bigraphs=[state])
 
     def write(self, path=None, key=None):
@@ -617,7 +680,7 @@ class BigraphicalReactiveSystem(Bigraph):
             for parallel in step:
                 with open(path / f'{parallel}.json', 'r') as step_file:
                     state = json.load(step_file)
-                    root = Bigraph.from_spec(state)
+                    root = Base.from_spec(state)
                     history.append(root)
 
         return history

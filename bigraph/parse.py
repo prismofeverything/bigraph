@@ -2,7 +2,7 @@ import fire
 from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
 
-from bigraph import Bigraph, Control, Node, One, Id, Edge, EdgeGroup, Parallel, Merge, Big, InGroup, Condition, Reaction, Range, Assign, Init, Param, RuleGroup, Rules, Preds, System, BigraphicalReactiveSystem
+from bigraph import Control, Node, One, Id, Edge, EdgeGroup, Parallel, Merge, Big, InGroup, Condition, Reaction, Range, Assign, Init, Param, RuleGroup, Rules, Preds, System, BigraphicalReactiveSystem
 
 
 examples = {
@@ -458,7 +458,9 @@ class BigVisitor(NodeVisitor):
         additional_edges = visit[1]['visit'][1]['visit']
         edge_symbols.extend(additional_edges)
 
-        return EdgeGroup(edges=[Edge(symbol) for symbol in edge_symbols])
+        return EdgeGroup(edges=[
+            Edge(symbol=symbol)
+            for symbol in edge_symbols])
 
     def visit_additional_edge(self, node, visit):
         return visit[1]

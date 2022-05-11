@@ -17,6 +17,31 @@ def none_index(seq):
     return -1
 
 
+def merge_links(self, a, b):
+    links = {}
+    for key, nodes in a.items():
+        if key in b:
+            nodes = list(nodes)
+            nodes.extend(b[key])
+        links[key] = nodes
+    for key, nodes in b.items():
+        if key not in a:
+            links[key] = nodes
+    return links
+
+
+def merge_spec(self, a, b):
+    controls = a['controls'].copy().merge(b.get('controls', {}))
+    nodes = a['nodes'].copy().merge(b.get('nodes', {}))
+    places = a['places'].copy().merge(b.get('places', {}))
+    links = merge_links(a['links'], b.get('links', {}))
+    return {
+        'controls': controls,
+        'nodes': nodes,
+        'places': places,
+        'links': links}
+
+
 class Base():
     def __init__(self):
         self.supernode = None
@@ -42,6 +67,13 @@ class Base():
 
     def find_edges(self):
         return {}
+
+    def unfold(self):
+        return {
+            'controls': {},
+            'nodes': {},
+            'places': {},
+            'links': {}}
 
     @classmethod
     def from_spec(cls, spec):
@@ -176,6 +208,20 @@ class Bigraph():
 
         return self.roots
 
+    @classmethod
+    def unfold(cls, roots):
+        spec = {
+            'controls': {},
+            'nodes': {},
+            'places': {},
+            'links': {}}
+
+        for root in roots:
+            root_spec = root.unfold()
+            spec = merge_spec(spec, root_spec)
+
+        return spec
+
 
 class Control(Base):
     def __init__(
@@ -196,6 +242,15 @@ class Control(Base):
             control=self,
             ports=ports,
             params=params)
+
+    def unfold(self):
+        return {
+            'controls': {
+                self.symbol: {
+                    'symbol': self.symbol,
+                    'arity': self.arity,
+                    'atomic': self.atomic,
+                    'fun': self.fun}}}
 
     def render(self):
         params = ''

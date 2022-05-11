@@ -18,8 +18,7 @@ def none_index(seq):
 
 
 class Base():
-    def __init__(self, definition=None):
-        self.definition = definition
+    def __init__(self):
         self.supernode = None
 
     def __repr__(self):
@@ -35,7 +34,7 @@ class Base():
         return [self]
 
     def is_site(self):
-        return false
+        return False
 
     def to_spec(self):
         # TODO
@@ -114,32 +113,68 @@ class Base():
 
 
 class Bigraph():
-    def __init__(self, nodes, places, links):
-        self.nodes = nodes
-        self.places = places
-        self.links = links
+    def __init__(
+            self,
+            controls=None,
+            nodes=None,
+            places=None,
+            links=None):
+        self.controls_spec = controls or {}
+        self.nodes_spec = nodes or {}
+        self.places_spec = places or {}
+        self.links_spec = links or {}
+
+        self.fold()
 
     def fold(self):
+        controls = {}
+        nodes = {}
+        links = {}
+
         sites = []
         roots = []
-        edges = []
         inner_names = []
         outer_names = []
-        for over, under in self.places:
-            self.nodes[over].nest(self.nodes[under])
-        for node in self.nodes.values():
+
+        for control, params in self.controls_spec.items():
+            controls[control] = Control(**params)
+
+        for node, original_params in self.nodes_spec.items():
+            params = original_params.copy()
+            control = params.pop('control')
+            if not control in controls:
+                controls[control] = Control(symbol=control)
+            nodes[node] = Node(
+                control=controls[control],
+                **params)
+
+        for key, subnodes in self.places_spec.items():
+            for subnode in subnodes:
+                nodes[key].nest(nodes[subnode])
+
+        for symbol, link in self.links_spec.items():
+            edge = Edge(
+                symbol=symbol,
+                nodes=[
+                    nodes[node]
+                    for node in link])
+            for node in edge.nodes:
+                node.link(edge)
+            links[symbol] = edge
+        
+        for node in nodes.values():
             if node.is_site():
                 sites.append(node)
             if not node.supernode:
                 roots.append(node)
-        for symbol, link in self.links.items():
-            edge = Edge(symbol=symbol, nodes=[
-                self.nodes[node]
-                for node in link])
-            for node in edge.nodes:
-                node.link(edge)
-            edges.append(edge)
-        
+
+        self.roots = roots
+        self.sites = sites
+        self.controls = controls
+        self.nodes = nodes
+        self.links = links
+
+        return self.roots
 
 
 class Control(Base):
@@ -149,6 +184,8 @@ class Control(Base):
             arity=0,
             atomic=False,
             fun=()):
+
+        super().__init__()
         self.symbol = symbol
         self.arity = arity
         self.atomic = atomic
@@ -176,10 +213,11 @@ class Control(Base):
 
 class Edge(Base):
     def __init__(self, symbol=None, nodes=None):
+        super().__init__()
         self.symbol = symbol
         self.nodes = nodes or []
-        for node in self.nodes:
-            self.link(node)
+        # for node in self.nodes:
+        #     self.link(node)
 
     def is_empty(self):
         return self.symbol is None or self.symbol == ''
@@ -199,6 +237,7 @@ class EdgeGroup(Base):
     # TODO: link all edges together?
 
     def __init__(self, edges=None):
+        super().__init__()
         edges = edges or []
         if len(edges) > 0 and isinstance(edges[0], str):
             edges = [
@@ -259,6 +298,7 @@ class Node(Base):
             subnodes: TODO
         '''
 
+        super().__init__()
         self.control = control or Control()
         self.params = params
         ports = ports or []
@@ -274,7 +314,6 @@ class Node(Base):
             for symbol, edge in subedges.items():
                 if symbol in found:
                     found[symbol].combine()
-            found.merge()
         found.merge(self.ports.find_edges())
         return found
 
@@ -321,7 +360,7 @@ class Node(Base):
 
     def nest(self, subnode):
         if self.subnodes:
-            self.subnodes.merge(subnode)
+            self.subnodes = self.subnodes.merge(subnode)
         else:
             self.subnodes = subnode
         subnode.join(self)
@@ -352,6 +391,7 @@ id_node = Id()
 
 class Parallel(Base):
     def __init__(self, parallel):
+        super().__init__()
         self.parallel = parallel or []
 
     def render(self, parent=False):
@@ -366,12 +406,14 @@ class Parallel(Base):
 
 class Merge(Base):
     def __init__(self, merges):
+        super().__init__()
         self.parts = []
         for merge in merges:
             self.merge(merge)
 
     def merge(self, other):
         self.parts.extend(other.get_merge())
+        return self
 
     def render(self, parent=False):
         merge = ' | '.join([
@@ -389,6 +431,7 @@ class InGroup(Base):
             control='',
             target='param',
             negate=False):
+        super().__init__()
         self.control = control
         self.target = target
         self.negate = negate
@@ -404,6 +447,7 @@ class Condition(Base):
     def __init__(
             self,
             groups):
+        super().__init__()
         self.groups = groups
 
     def render(self):
@@ -422,6 +466,7 @@ class Reaction(Base):
             instantiation=None,
             condition=None):
 
+        super().__init__()
         self.symbol = symbol
         self.params = params
         self.redex = redex
@@ -451,6 +496,7 @@ class Reaction(Base):
 
 class Big(Base):
     def __init__(self, symbol, root):
+        super().__init__()
         self.symbol = symbol
         self.root = root
 
@@ -464,6 +510,7 @@ class Range(Base):
             start='nil',
             step='il',
             stop='nil'):
+        super().__init__()
         self.start = start
         self.step = step
         self.stop = stop
@@ -478,6 +525,7 @@ class Assign(Base):
             assign_type='nil',
             symbol='il',
             value='nil'):
+        super().__init__()
         self.assign_type = assign_type
         self.symbol = symbol
         self.value = value
@@ -496,6 +544,7 @@ class Init(Base):
     def __init__(
             self,
             symbol=None):
+        super().__init__()
         self.symbol = symbol
 
     def render(self):
@@ -507,6 +556,7 @@ class Param(Base):
             self,
             symbol=None,
             params=()):
+        super().__init__()
         self.symbol = symbol
         self.params = params
 
@@ -522,6 +572,7 @@ class RuleGroup(Base):
             self,
             deterministic=True,
             rules=()):
+        super().__init__()
         self.deterministic = deterministic
         self.rules = rules
     
@@ -540,6 +591,7 @@ class Rules(Base):
     def __init__(
             self,
             rule_groups=()):
+        super().__init__()
         self.rule_groups = rule_groups
 
     def render(self):
@@ -554,6 +606,7 @@ class Preds(Base):
     def __init__(
             self,
             rules=()):
+        super().__init__()
         self.rules = rules
 
     def render(self):
@@ -569,6 +622,7 @@ class System(Base):
             rules=None,
             preds=()):
 
+        super().__init__()
         self.system_type = system_type
         self.init = init
         self.bindings = bindings
@@ -597,6 +651,9 @@ class BigraphicalReactiveSystem(Base):
             executable='bigrapher',
             path='.',
             key='system'):
+
+        super().__init__()
+
         self.controls = controls or {}
         self.controls['1'] = Control(symbol='1')
         self.bigraphs = bigraphs or {}
@@ -722,7 +779,7 @@ class BigraphicalReactiveSystem(Base):
         return big
 
 
-def test_bigraphs(
+def test_bigraphical_system(
         executable='../bigraph-tools/_build/default/bigrapher/src/bigrapher.exe'):
 
     ctrl = {
@@ -855,5 +912,54 @@ def test_bigraphs(
         print(transition.render())
 
 
+def test_bigraph():
+    controls = {
+        'A': {
+            'symbol': 'A',
+            'arity': 1},
+        'B': {
+            'symbol': 'B',
+            'arity': 2,
+            'fun': ('x', 'y')}}
+
+    nodes = {
+        '1': {
+            'control': 'A'},
+        '2': {
+            'control': 'A'},
+        '3': {
+            'control': 'B',
+            'params': (3, 5)},
+        '4': {
+            'control': 'B',
+            'params': (11, 13)}}
+
+    places = {
+        '1': ('2', '4'),
+        '2': ('3',)}
+
+    links = {
+        'm': ('1', '3'),
+        'n': ('2', '3', '4'),
+        'o': ('4',)}
+
+    bigraph = Bigraph(
+        controls=controls,
+        nodes=nodes,
+        places=places,
+        links=links)
+
+    for root in bigraph.roots:
+        print(root)
+
+    import ipdb; ipdb.set_trace()
+
+
+def test_all():
+    test_bigraphical_system()
+    print('\n\n\n')
+    test_bigraph()
+
+
 if __name__ == '__main__':
-    fire.Fire(test_bigraphs)
+    fire.Fire(test_all)

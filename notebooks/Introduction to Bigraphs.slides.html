@@ -14658,7 +14658,7 @@ div.jp-OutputPrompt {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h1 id="Introduction-to-Bigraphs">Introduction to Bigraphs<a class="anchor-link" href="#Introduction-to-Bigraphs">&#182;</a></h1><p>Bigraphs were invented by Robin Milner as an extension/generalization of previous process calculi (some of which he invented as well). A process calculus is a way to formally model concurrent and distributed systems, including communication/interactions/synchronizations, along with a set of algebraic laws to reason about them.</p>
+<h1 id="Introduction-to-Bigraphs">Introduction to Bigraphs<a class="anchor-link" href="#Introduction-to-Bigraphs">&#182;</a></h1><p>Bigraphs were invented by Robin Milner as an extension/generalization of previous process calculi (some of which he invented as well). A <a href="https://en.wikipedia.org/wiki/Process_calculus">process calculus</a> is a way to formally model concurrent and distributed systems, including communication/interactions/synchronizations, along with a set of algebraic laws to reason about them.</p>
 <p><img src="img/first-bigraph.png" alt="bigraph"></p>
 
 </div>
@@ -15250,7 +15250,19 @@ div.jp-OutputPrompt {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h3 id="parsing">parsing<a class="anchor-link" href="#parsing">&#182;</a></h3><p>To parse a bigraph from a string, use the <code>bigraph</code> function:</p>
+<h2 id="parsing">parsing<a class="anchor-link" href="#parsing">&#182;</a></h2><p>The notation we have been using for bigraphs is Milner's original formalized into a language named <code>.big</code>, as implemented by the <a href="https://uog-bigraph.bitbucket.io/index.html">Glasgow Bigraph Team</a>. We are using their engine to run simulations, but we have our own parser for <code>.big</code> files implemented as a <a href="https://en.wikipedia.org/wiki/Parsing_expression_grammar">Parsing Expression Grammar</a> that converts strings into python bigraph objects.</p>
+
+</div>
+</div>
+</div>
+</div></section><section>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<p>To access the <code>.big</code> parser, use the <code>bigraph</code> function:</p>
 
 </div>
 </div>

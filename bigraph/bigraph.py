@@ -5,9 +5,14 @@ import fire
 import subprocess
 import networkx as nx
 from pathlib import Path
+from IPython.display import SVG, display
 
 
 AVAILABLE_OUTPUT_FORMATS = ['json', 'svg', 'txt']
+
+
+def show_svg(path):
+    display(SVG(filename=path))
 
 
 def none_index(seq):
@@ -901,6 +906,13 @@ class BigraphicalReactiveSystem(Base):
         return big
 
 
+def visualize_transition(
+        index,
+        path='out/test/visualize'):
+
+    show_svg(Path(path) / f'{index}.svg')
+
+
 def visualize(
         big,
         names=None,
@@ -932,6 +944,8 @@ def visualize(
         format=('json','svg'),
         console=True)
     
+    visualize_transition(0)
+
     import ipdb; ipdb.set_trace()
 
 

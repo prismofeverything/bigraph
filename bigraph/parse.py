@@ -317,8 +317,11 @@ class BigVisitor(NodeVisitor):
             condition=condition)
 
     def visit_arrow(self, node, visit):
-        params = visit[2]['visit'][0]
-        return params
+        params = visit[2]['visit']
+        if len(params) > 0:
+            return params[0]
+        else:
+            return params
 
     def visit_instantiation(self, node, visit):
         return visit[1]

@@ -891,12 +891,12 @@ class BigraphicalReactiveSystem(Base):
         with open(big_path, 'w') as big_file:
             big_file.write(render)
 
-    def subcommand_options(self, subcommand, path, key, **options):
+    def subcommand_options(self, subcommand, path, key, steps=None):
         command = [subcommand]
         if subcommand == 'sim':
             command.extend(['-s', '-t', path / key])
-            if 'time' in options:
-                command.extend(['-T', options['time']])
+            if steps is not None:
+                command.extend(['-S', str(steps)])
         elif subcommand == 'validate':
             command.extend(['-s', '-t', path / key])
         return command
@@ -907,6 +907,7 @@ class BigraphicalReactiveSystem(Base):
             key=None,
             subcommand='sim',
             format='json',
+            steps=None,
             console=False):
 
         if isinstance(format, str):
@@ -918,7 +919,11 @@ class BigraphicalReactiveSystem(Base):
         path = path or self.path
         key = key or self.key
 
-        options = self.subcommand_options(subcommand, path, key)
+        options = self.subcommand_options(
+            subcommand,
+            path,
+            key,
+            steps=steps)
 
         command = [self.executable]
         command.extend(options)
@@ -970,6 +975,7 @@ class BigraphicalReactiveSystem(Base):
             key=None,
             subcommand='sim',
             format='json',
+            steps=None,
             console=False):
 
         path = path or self.path
@@ -981,6 +987,7 @@ class BigraphicalReactiveSystem(Base):
             key=key,
             subcommand=subcommand,
             format=format,
+            steps=steps,
             console=console)
         result = self.read(path=path, key=key)
 
@@ -1026,10 +1033,6 @@ def visualize(
     bigraphs = {
         0: Big(symbol=names[0], root=bigraph.roots.ground())}
 
-    # bigraphs = {
-    #     index: Big(symbol=names[index % len(names)], root=root.ground())
-    #     for index, root in enumerate(bigraph.roots)}
-
     system = System(
         system_type='brs',
         bindings=[],
@@ -1047,6 +1050,59 @@ def visualize(
         format=('json','svg'))
     
     visualize_transition(0)
+
+    return result[0]
+
+
+def react(
+        reaction,
+        big,
+        names=PARAMETER_SYMBOLS,
+        path='out/test/react',
+        executable='bigrapher'):
+
+    bigraph = Bigraph.unfold(big)
+    bigraph_symbol = 'initial'
+    bigraphs = {
+        bigraph_symbol: Big(symbol=bigraph_symbol, root=bigraph.roots.ground())}
+
+    reactions = {
+        reaction.symbol: reaction}
+
+    rules = Rules(
+        rule_groups=[
+            RuleGroup(
+                deterministic=False,
+                rules=[reaction.symbol])])
+
+    redex = Bigraph.unfold(reaction.redex)
+    reactum = Bigraph.unfold(reaction.reactum)
+    controls = bigraph.controls.copy()
+    controls.update(redex.controls)
+    controls.update(reactum.controls)
+
+    system = System(
+        system_type='brs',
+        bindings=[],
+        init=Init(symbol=bigraph_symbol),
+        rules=rules)
+
+    brs = BigraphicalReactiveSystem(
+        controls=controls,
+        bigraphs=bigraphs,
+        reactions=reactions,
+        system=system,
+        executable=executable,
+        path=path)
+
+    result = brs.simulate(
+        subcommand='sim',
+        format=('json','svg'),
+        steps=0)
+    
+    # visualize_transition(1, path=path)
+
+    return result[1]
 
 
 def test_bigraphical_system(
@@ -1220,41 +1276,11 @@ def test_bigraph(
 
     bigraph.nodes['3'].assign('y', 14)
 
-    for root in bigraph.roots:
-        print(root)
-
-    names = ['aabb']
-
-    bigraphs = {
-        index: Big(symbol=names[index % len(names)], root=root.ground())
-        for index, root in enumerate(bigraph.roots)}
-
-    print(bigraphs)
-
-    spec = Bigraph.unfold(bigraph.roots)
-    print(spec.get_spec())
-
-    system = System(
-        system_type='brs',
-        bindings=[],
-        init=Init(symbol='aabb'))
-
-    brs = BigraphicalReactiveSystem(
-        controls=bigraph.controls,
-        bigraphs=bigraphs,
-        system=system,
-        executable=executable,
-        path='out/test/validate')
-
-    result = brs.simulate(
-        subcommand='sim',
-        format=('json','svg'),
-        console=True)
+    transition = visualize(bigraph.roots)
 
     print('\n\n\n')
-    print('TRANSITIONS:')
-    for transition in result:
-        print(transition.render())
+    print('TRANSITION:')
+    print(transition.render())
 
 
 def test_all():

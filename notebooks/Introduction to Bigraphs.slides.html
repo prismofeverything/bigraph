@@ -14940,6 +14940,20 @@ div.jp-OutputPrompt {
 
 </div>
 
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[3]:</div>
+
+
+
+
+<div class="jp-RenderedText jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/plain">
+<pre>A.B</pre>
+</div>
+
+</div>
+
 </div>
 
 </div>
@@ -15070,6 +15084,20 @@ div.jp-OutputPrompt {
 
 </div>
 
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[5]:</div>
+
+
+
+
+<div class="jp-RenderedText jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/plain">
+<pre>A | B</pre>
+</div>
+
+</div>
+
 </div>
 
 </div>
@@ -15193,6 +15221,20 @@ div.jp-OutputPrompt {
 </g>
 </g>
 </svg>
+</div>
+
+</div>
+
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[8]:</div>
+
+
+
+
+<div class="jp-RenderedText jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/plain">
+<pre>A{b}</pre>
 </div>
 
 </div>
@@ -15578,6 +15620,20 @@ div.jp-OutputPrompt {
 
 </div>
 
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[14]:</div>
+
+
+
+
+<div class="jp-RenderedText jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/plain">
+<pre>A.(B | C{m,n})</pre>
+</div>
+
+</div>
+
 </div>
 
 </div>
@@ -15600,7 +15656,7 @@ div.jp-OutputPrompt {
 </div>
 </div>
 </div>
-</div><div class="fragment">
+</div></section><section>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
@@ -15612,7 +15668,7 @@ div.jp-OutputPrompt {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
+</div><div class="fragment"><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -15654,7 +15710,7 @@ div.jp-OutputPrompt {
 
 </div>
 
-</div></div><div class="fragment">
+</div></div></section><section>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
@@ -15666,7 +15722,7 @@ div.jp-OutputPrompt {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
+</div><div class="fragment"><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -15965,7 +16021,9 @@ div.jp-OutputPrompt {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h2 id="reactions">reactions<a class="anchor-link" href="#reactions">&#182;</a></h2>
+<h2 id="reactions">reactions<a class="anchor-link" href="#reactions">&#182;</a></h2><p>We have been talking a lot about the structure of bigraphs, but the real point is to operate dynamically, in this case through <code>reactions</code>. A reaction is composed of two separate bigraphs, the <code>redex</code> which matches some existing structure, and the <code>reactum</code> that signifies what to modify in that structure.</p>
+<p><img src="img/reaction-example.png" alt="reaction"></p>
+
 </div>
 </div>
 </div>
@@ -15976,22 +16034,204 @@ div.jp-OutputPrompt {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h3 id="specifying-reaction-rules">specifying reaction rules<a class="anchor-link" href="#specifying-reaction-rules">&#182;</a></h3>
+<h3 id="declaring-a-reaction">declaring a reaction<a class="anchor-link" href="#declaring-a-reaction">&#182;</a></h3><p>To create a new reaction, we need to specify the redex bigraph and the reactum bigraph. Here is a simple reaction which takes any node with a <code>Hello</code> control and nests a <code>World</code> node inside it:</p>
+
 </div>
 </div>
 </div>
-</div></section><section>
+</div><div class="fragment"><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[21]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+     <div class="CodeMirror cm-s-jupyter">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">add_world</span> <span class="o">=</span> <span class="n">bigraph</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">react add_world =</span>
+<span class="s2">    Hello</span>
+<span class="s2">    --&gt;</span>
+<span class="s2">    Hello.World</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+<span class="n">add_world</span>
+</pre></div>
+
+     </div>
+</div>
+</div>
+</div>
+
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+
+
+<div class="jp-OutputArea jp-Cell-outputArea">
+
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[21]:</div>
+
+
+
+
+<div class="jp-RenderedText jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/plain">
+<pre>react add_world = 
+Hello
+--&gt;
+Hello.World</pre>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div></div></section><section>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<h3 id="applying-a-reaction-rule-to-a-bigraph">applying a reaction rule to a bigraph<a class="anchor-link" href="#applying-a-reaction-rule-to-a-bigraph">&#182;</a></h3>
+<h3 id="applying-a-reaction">applying a reaction<a class="anchor-link" href="#applying-a-reaction">&#182;</a></h3><p>Now let's apply our reaction. We need an initial bigraph, in this case the lone node with control <code>Hello</code>. Then we can call <code>react(hello)</code> on it:</p>
+
 </div>
 </div>
 </div>
-</div></section></section><section><section>
+</div><div class="fragment"><div class="jp-Cell jp-CodeCell jp-Notebook-cell   ">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[22]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+     <div class="CodeMirror cm-s-jupyter">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">hello</span> <span class="o">=</span> <span class="n">bigraph</span><span class="p">(</span><span class="s2">&quot;Hello&quot;</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">react</span><span class="p">(</span><span class="n">add_world</span><span class="p">,</span> <span class="n">hello</span><span class="p">)</span>
+
+<span class="n">visualize</span><span class="p">(</span><span class="n">hello</span><span class="p">)</span>
+<span class="n">visualize</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+<span class="n">result</span>
+</pre></div>
+
+     </div>
+</div>
+</div>
+</div>
+
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+
+
+<div class="jp-OutputArea jp-Cell-outputArea">
+
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+
+
+
+<div class="jp-RenderedSVG jp-OutputArea-output " data-mime-type="image/svg+xml">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="58pt" height="84pt" viewBox="0.00 0.00 58.00 84.00">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 80)">
+<title>0.svg</title>
+<polygon fill="white" stroke="transparent" points="-4,4 -4,-80 54,-80 54,4 -4,4"/>
+<!-- r0 -->
+<g id="node1" class="node">
+<title>r0</title>
+<polygon fill="none" stroke="black" stroke-dasharray="5,2" points="36,-76 14,-76 14,-58 36,-58 36,-76"/>
+<text text-anchor="middle" x="25" y="-64.8" font-family="serif" font-size="9.00">0</text>
+</g>
+<!-- v0 -->
+<g id="v0_Hello" class="node">
+<title>v0</title>
+<ellipse fill="none" stroke="black" cx="25" cy="-11" rx="25" ry="11"/>
+<text text-anchor="middle" x="25" y="-8.8" font-family="sans-serif" font-size="9.00">Hello</text>
+</g>
+<!-- r0&#45;&gt;v0 -->
+<g id="edge1" class="edge">
+<title>r0-&gt;v0</title>
+<path fill="none" stroke="black" d="M25,-57.56C25,-49.45 25,-37.01 25,-27.18"/>
+<polygon fill="black" stroke="black" points="25,-22.03 27.25,-27.03 25,-24.53 25,-27.03 25,-27.03 25,-27.03 25,-24.53 22.75,-27.03 25,-22.03 25,-22.03"/>
+</g>
+</g>
+</svg>
+</div>
+
+</div>
+
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+
+
+
+<div class="jp-RenderedSVG jp-OutputArea-output " data-mime-type="image/svg+xml">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="58pt" height="142pt" viewBox="0.00 0.00 58.00 142.00">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 138)">
+<title>0.svg</title>
+<polygon fill="white" stroke="transparent" points="-4,4 -4,-138 54,-138 54,4 -4,4"/>
+<!-- r0 -->
+<g id="node1" class="node">
+<title>r0</title>
+<polygon fill="none" stroke="black" stroke-dasharray="5,2" points="36,-134 14,-134 14,-116 36,-116 36,-134"/>
+<text text-anchor="middle" x="25" y="-122.8" font-family="serif" font-size="9.00">0</text>
+</g>
+<!-- v0 -->
+<g id="v0_Hello" class="node">
+<title>v0</title>
+<ellipse fill="none" stroke="black" cx="25" cy="-69" rx="25" ry="11"/>
+<text text-anchor="middle" x="25" y="-66.8" font-family="sans-serif" font-size="9.00">Hello</text>
+</g>
+<!-- r0&#45;&gt;v0 -->
+<g id="edge1" class="edge">
+<title>r0-&gt;v0</title>
+<path fill="none" stroke="black" d="M25,-115.56C25,-107.45 25,-95.01 25,-85.18"/>
+<polygon fill="black" stroke="black" points="25,-80.03 27.25,-85.03 25,-82.53 25,-85.03 25,-85.03 25,-85.03 25,-82.53 22.75,-85.03 25,-80.03 25,-80.03"/>
+</g>
+<!-- v1 -->
+<g id="v1_World" class="node">
+<title>v1</title>
+<ellipse fill="none" stroke="black" cx="25" cy="-11" rx="25" ry="11"/>
+<text text-anchor="middle" x="25" y="-8.8" font-family="sans-serif" font-size="9.00">World</text>
+</g>
+<!-- v0&#45;&gt;v1 -->
+<g id="edge2" class="edge">
+<title>v0-&gt;v1</title>
+<path fill="none" stroke="black" d="M25,-57.99C25,-49.49 25,-37.17 25,-27.42"/>
+<polygon fill="black" stroke="black" points="25,-22.3 27.25,-27.3 25,-24.8 25,-27.3 25,-27.3 25,-27.3 25,-24.8 22.75,-27.3 25,-22.3 25,-22.3"/>
+</g>
+</g>
+</svg>
+</div>
+
+</div>
+
+<div class="jp-OutputArea-child">
+
+    
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[22]:</div>
+
+
+
+
+<div class="jp-RenderedText jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/plain">
+<pre>Hello.World</pre>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div></div></section></section><section><section>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">

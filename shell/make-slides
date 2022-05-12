@@ -1,0 +1,1 @@
+jupyter nbconvert notebooks/Introduction\ to\ Bigraphs.ipynb --to slides

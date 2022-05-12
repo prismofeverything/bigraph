@@ -240,8 +240,8 @@ class Control(Base):
     def generate(self, ports, params=None):
         return Node(
             control=self,
-            ports=ports,
-            params=params)
+            params=params,
+            ports=ports)
 
     def unfold(self):
         return {
@@ -299,7 +299,12 @@ class EdgeGroup(Base):
                 Edge(symbol=edge) for edge in edges]
         self.edges = edges
 
+    def arity(self):
+        return len(self.edges)
+
     def link(self, edge):
+        if isinstance(edge, str):
+            edge = Edge(symbol=edge)
         self.edges.append(edge)
 
     def find_edges(self):
@@ -315,8 +320,6 @@ class EdgeGroup(Base):
 
     def render(self, parent=False):
         if len(self.edges) > 0:
-            if isinstance(self.edges[0], str):
-                import ipdb; ipdb.set_trace()
             render = ','.join([edge.symbol for edge in self.edges])
             return '{' + render + '}'
         else:
@@ -324,6 +327,9 @@ class EdgeGroup(Base):
 
 
 class Id(Base):
+    def merge(self, node):
+        return node
+
     def render(self, parent=None):
         return 'id'
 
@@ -340,8 +346,8 @@ class Node(Base):
     def __init__(
             self,
             control=None,
-            ports=None,
             params=None,
+            ports=None,
             subnodes=None):
 
         ''' create a bigraphical node 
@@ -357,7 +363,7 @@ class Node(Base):
         self.control = control or Control()
         self.params = params
         ports = ports or []
-        if isinstance(ports, list):
+        if isinstance(ports, (list, tuple)):
             ports = EdgeGroup(edges=ports)
         self.ports = ports
         self.subnodes = subnodes
@@ -400,18 +406,14 @@ class Node(Base):
         return self.control.symbol or 'id'
 
     def arity(self):
-        return self.control.arity
+        arity = self.ports.arity()
+        if self.control.arity > arity:
+            arity = self.control.arity
+        return arity
 
     def link(self, edge):
         self.ports.link(edge)
-        # index = self.ports.find_empty_index()
-        # # index = none_index(self.ports.edges)
-
-        # if index == -1:
-        #     raise Exception(
-        #         'cannot link name {name}, all ports have already been named for this node: {self.render()}')
-
-        # self.ports.edges[index] = Edge(name)
+        return self
 
     def nest(self, subnode):
         if self.subnodes:
@@ -851,14 +853,14 @@ def test_bigraphical_system(
     a0 = Node(ctrl['A'], ['a']).nest(
         Node(ctrl['Snd']).nest(
             Merge([
-                Node(ctrl['M'], ['a', 'v_a']),
+                Node(ctrl['M'], ports=['a', 'v_a']),
                 Node(ctrl['Ready']).nest(
                     Node(ctrl['Fun']).nest(
                         Node(ctrl['1'])))])))
 
-    a1 = Node(ctrl['A'], ['b']).nest(
+    a1 = Node(ctrl['A'], ports=['b']).nest(
         Node(ctrl['Snd']).nest(
-            Node(ctrl['M'], ['a', 'v_b'])))
+            Node(ctrl['M'], ports=['a', 'v_b'])))
 
     bigraphs = {
         'a0': Big(symbol='a0', root=a0),
@@ -872,59 +874,59 @@ def test_bigraphical_system(
 
         'phi': Big(symbol='phi', root=Node(ctrl['Mail']).nest(
             Merge([
-                Node(ctrl['M'], ['a', 'v']),
+                Node(ctrl['M'], ports=['a', 'v']),
                 id_node])))}
 
     reactions = {
         'snd': Reaction(
             symbol='snd',
             redex=Merge([
-                Node(ctrl['A'], ['a0']).nest(
+                Node(ctrl['A'], ports=['a0']).nest(
                     Node(ctrl['Snd']).nest(
                         Merge([
-                            Node(ctrl['M'], ['a1', 'v']),
+                            Node(ctrl['M'], ports=['a1', 'v']),
                             id_node]))),
                 Node(ctrl['Mail'])]),
             reactum=Merge([
-                Node(ctrl['A'], ['a0']),
+                Node(ctrl['A'], ports=['a0']),
                 Node(ctrl['Mail']).nest(
                     Merge([
-                        Node(ctrl['M'], ['a1', 'v']),
+                        Node(ctrl['M'], ports=['a1', 'v']),
                         id_node]))])),
 
         'ready': Reaction(
             symbol='ready',
             redex=Merge([
-                Node(ctrl['A'], ['a']).nest(
+                Node(ctrl['A'], ports=['a']).nest(
                     Node(ctrl['Ready'])),
                 Node(ctrl['Mail']).nest(
                     Merge([
-                        Node(ctrl['M'], ['a', 'v']),
+                        Node(ctrl['M'], ports=['a', 'v']),
                         id_node]))]),
             reactum=Merge([
-                Node(ctrl['A'], ['a']),
+                Node(ctrl['A'], ports=['a']),
                 Node(ctrl['Mail']),
                 EdgeGroup([Edge('v')])])),
 
         'lambda': Reaction(
             symbol='lambda',
-            redex=Node(ctrl['A'], ['a']).nest(
+            redex=Node(ctrl['A'], ports=['a']).nest(
                 Node(ctrl['Fun'])),
-            reactum=Node(ctrl['A'], ['a'])),
+            reactum=Node(ctrl['A'], ports=['a'])),
 
         'new': Reaction(
             symbol='new',
-            redex=Node(ctrl['A'], ['a0']).nest(
+            redex=Node(ctrl['A'], ports=['a0']).nest(
                 Merge([
                     Node(ctrl['New']).nest(
                         Merge([
-                            Node(ctrl['A\''], ['a1']),
+                            Node(ctrl['A\''], ports=['a1']),
                             id_node])),
                     id_node])),
             reactum=Merge([
-                Node(ctrl['A'], ['a0']).nest(
+                Node(ctrl['A'], ports=['a0']).nest(
                     Merge([id_node, id_node])),
-                Node(ctrl['A'], ['a1']).nest(
+                Node(ctrl['A'], ports=['a1']).nest(
                     Merge([id_node, id_node]))]),
             instantiation=[1, 2, 0, 2])}
             

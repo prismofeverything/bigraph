@@ -532,7 +532,7 @@ def parse_big(path):
     return big
 
 
-if __name__ == '__main__':
+def test_parse_bigraph():
     for key, example in examples.items():
         big = bigraph(example)
 
@@ -544,3 +544,8 @@ if __name__ == '__main__':
 
     print(psd_fifo.render())
 
+    import ipdb; ipdb.set_trace()
+
+
+if __name__ == '__main__':
+    fire.Fire(test_parse_bigraph)

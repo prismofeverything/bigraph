@@ -243,6 +243,9 @@ class Control(Base):
             params=params,
             ports=ports)
 
+    def param_index(self, symbol):
+        return self.fun.index(symbol)
+
     def unfold(self):
         return {
             'controls': {
@@ -361,7 +364,11 @@ class Node(Base):
 
         super().__init__()
         self.control = control or Control()
-        self.params = params
+        self.params = params or []
+        missing = len(self.control.fun) - len(self.params)
+        if missing > 0:
+            self.params.extend([
+                None for _ in range(missing)])
         ports = ports or []
         if isinstance(ports, (list, tuple)):
             ports = EdgeGroup(edges=ports)
@@ -413,6 +420,16 @@ class Node(Base):
 
     def link(self, edge):
         self.ports.link(edge)
+        return self
+
+    def assign(self, param, value):
+        index = self.control.param_index(param)
+
+        if index >= 0:
+            params = list(self.params)
+            params[index] = value
+            self.params = tuple(params)
+
         return self
 
     def nest(self, subnode):
@@ -1005,6 +1022,8 @@ def test_bigraph():
         nodes=nodes,
         places=places,
         links=links)
+
+    bigraph.nodes['3'].assign('y', 14)
 
     for root in bigraph.roots:
         print(root)

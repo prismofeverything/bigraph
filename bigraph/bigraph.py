@@ -22,7 +22,7 @@ def none_index(seq):
     return -1
 
 
-def merge_links(self, a, b):
+def merge_links(a, b):
     links = {}
     for key, nodes in a.items():
         if key in b:
@@ -35,16 +35,36 @@ def merge_links(self, a, b):
     return links
 
 
-def merge_spec(self, a, b):
-    controls = a['controls'].copy().merge(b.get('controls', {}))
-    nodes = a['nodes'].copy().merge(b.get('nodes', {}))
-    places = a['places'].copy().merge(b.get('places', {}))
-    links = merge_links(a['links'], b.get('links', {}))
+def merge_spec(a, b):
+    controls = a.get('controls', {}).copy()
+    controls.update(b.get('controls', {}))
+
+    nodes = a.get('nodes', {}).copy()
+    nodes.update(b.get('nodes', {}))
+
+    places = a.get('places', {}).copy()
+    places.update(b.get('places', {}))
+
+    links = merge_links(a.get('links', {}), b.get('links', {}))
+
     return {
         'controls': controls,
         'nodes': nodes,
         'places': places,
         'links': links}
+
+
+def tupleize_spec(original_spec):
+    spec = original_spec.copy()
+    spec['places'] = {
+        key: tuple(value)
+        for key, value in spec['places'].items()}
+
+    spec['links'] = {
+        key: tuple(value)
+        for key, value in spec['links'].items()}
+
+    return spec
 
 
 class Base():
@@ -73,12 +93,12 @@ class Base():
     def find_edges(self):
         return {}
 
-    def unfold(self):
+    def unfold(self, id_generator=None):
         return {
             'controls': {},
             'nodes': {},
             'places': {},
-            'links': {}}
+            'links': {}}, []
 
     @classmethod
     def from_spec(cls, spec):
@@ -149,6 +169,33 @@ class Base():
         return root
 
 
+class SequentialGenerator():
+    def __init__(self, initial_count=0):
+        self.count = initial_count
+
+    def generate(self):
+        new_id = self.count
+        self.count += 1
+        return new_id
+
+
+def unfold_spec(roots):
+    spec = {}
+    id_generator = SequentialGenerator()
+    root_ids = []
+
+    if isinstance(roots, Base):
+        roots = [roots]
+
+    for root in roots:
+        root_spec, root_ids = root.unfold(id_generator)
+        spec = merge_spec(spec, root_spec)
+        spec = tupleize_spec(spec)
+        root_ids.extend(root_ids)
+
+    return spec
+
+
 class Bigraph():
     def __init__(
             self,
@@ -162,6 +209,13 @@ class Bigraph():
         self.links_spec = links or {}
 
         self.fold()
+
+    def get_spec(self):
+        return {
+            'controls': self.controls_spec.copy(),
+            'nodes': self.nodes_spec.copy(),
+            'places': self.places_spec.copy(),
+            'links': self.links_spec.copy()}
 
     def fold(self):
         controls = {}
@@ -215,17 +269,19 @@ class Bigraph():
 
     @classmethod
     def unfold(cls, roots):
-        spec = {
-            'controls': {},
-            'nodes': {},
-            'places': {},
-            'links': {}}
+        spec = unfold_spec(roots)
+        return cls(**spec)
+        # spec = {}
 
-        for root in roots:
-            root_spec = root.unfold()
-            spec = merge_spec(spec, root_spec)
+        # id_generator = SequentialGenerator()
+        # root_ids = []
 
-        return spec
+        # for root in roots:
+        #     root_spec, root_ids = root.unfold(id_generator)
+        #     spec = merge_spec(spec, root_spec)
+        #     root_ids.extend(root_ids)
+
+        # return spec
 
 
 class Control(Base):
@@ -242,6 +298,13 @@ class Control(Base):
         self.atomic = atomic
         self.fun = fun
             
+    def get_spec(self):
+        return {
+            'symbol': self.symbol,
+            'arity': self.arity,
+            'atomic': self.atomic,
+            'fun': self.fun}
+
     def generate(self, ports, params=None):
         return Node(
             control=self,
@@ -250,15 +313,6 @@ class Control(Base):
 
     def param_index(self, symbol):
         return self.fun.index(symbol)
-
-    def unfold(self):
-        return {
-            'controls': {
-                self.symbol: {
-                    'symbol': self.symbol,
-                    'arity': self.arity,
-                    'atomic': self.atomic,
-                    'fun': self.fun}}}
 
     def render(self):
         params = ''
@@ -355,6 +409,7 @@ class Id(Base):
     def ground(self):
         return One()
 
+
 id_node = Id()
 
 
@@ -387,6 +442,32 @@ class Node(Base):
             ports = EdgeGroup(edges=ports)
         self.ports = ports
         self.subnodes = subnodes
+
+    def get_spec(self):
+        return {
+            'control': self.control.symbol,
+            'params': self.params}
+
+    def unfold(self, id_generator=None):
+        id_generator = id_generator or SequentialGenerator()
+        id = id_generator.generate()
+        if self.subnodes:
+            spec, subnode_ids = self.subnodes.unfold(id_generator)
+            spec['places'][id] = subnode_ids
+        else:
+            spec = {
+                'controls': {},
+                'nodes': {},
+                'places': {},
+                'links': {}}
+
+        spec['controls'][self.control.symbol] = self.control.get_spec()
+        spec['nodes'][id] = self.get_spec()
+        for edge in self.ports.edges:
+            if edge.symbol not in spec['links']:
+                spec['links'][edge.symbol] = []
+            spec['links'][edge.symbol].append(id)
+        return spec, [id]
 
     def find_edges(self):
         found = {}
@@ -485,6 +566,16 @@ class Parallel(Base):
         super().__init__()
         self.parallel = parallel or []
 
+    def unfold(self, id_generator=None):
+        id_generator = id_generator or SequentialGenerator()
+        spec = {}
+        subnode_ids = []
+        for parallel in self.parallel:
+            subspec, ids = parallel.unfold(id_generator)
+            spec = merge_spec(spec, subspec)
+            subnode_ids.extend(ids)
+        return spec, subnode_ids
+
     def ground(self):
         self.parallel = [
             parallel.ground()
@@ -507,6 +598,16 @@ class Merge(Base):
         self.parts = []
         for merge in merges:
             self.merge(merge)
+
+    def unfold(self, id_generator=None):
+        id_generator = id_generator or SequentialGenerator()
+        spec = {}
+        subnode_ids = []
+        for parts in self.parts:
+            subspec, ids = parts.unfold(id_generator)
+            spec = merge_spec(spec, subspec)
+            subnode_ids.extend(ids)
+        return spec, subnode_ids
 
     def merge(self, other):
         self.parts.extend(other.get_merge())
@@ -917,7 +1018,7 @@ def visualize(
         big,
         names=None,
         path='out/test/visualize',
-        executable='../bigraph-tools/_build/default/bigrapher/src/bigrapher.exe'):
+        executable='bigrapher'):
 
     if names is None:
         names = 'abcdefghijklmnopqrstuvwxyz'
@@ -946,11 +1047,9 @@ def visualize(
     
     visualize_transition(0)
 
-    import ipdb; ipdb.set_trace()
-
 
 def test_bigraphical_system(
-        executable='../bigraph-tools/_build/default/bigrapher/src/bigrapher.exe'):
+        executable='bigrapher'):
 
     ctrl = {
         'A': Control(symbol='A', arity=1),
@@ -1083,7 +1182,7 @@ def test_bigraphical_system(
 
 
 def test_bigraph(
-        executable='../bigraph-tools/_build/default/bigrapher/src/bigrapher.exe'):
+        executable='bigrapher'):
 
     controls = {
         'A': {
@@ -1134,6 +1233,9 @@ def test_bigraph(
         for index, root in enumerate(bigraph.roots)}
 
     print(bigraphs)
+
+    spec = Bigraph.unfold(bigraph.roots)
+    print(spec.get_spec())
 
     system = System(
         system_type='brs',

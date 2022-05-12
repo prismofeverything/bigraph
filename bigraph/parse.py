@@ -2,7 +2,10 @@ import fire
 from parsimonious.grammar import Grammar
 from parsimonious.nodes import NodeVisitor
 
-from bigraph import Control, Node, One, Id, Edge, EdgeGroup, Parallel, Merge, Big, InGroup, Condition, Reaction, Range, Assign, Init, Param, RuleGroup, Rules, Preds, System, BigraphicalReactiveSystem
+from bigraph.bigraph import Control, Node, One, Id, Edge, EdgeGroup, Parallel, Merge, Big, InGroup, Condition, Reaction, Range, Assign, Init, Param, RuleGroup, Rules, Preds, System, BigraphicalReactiveSystem
+
+
+PARAMETER_SYMBOLS = 'abcdefghijklmnopqrstuvwxyz'
 
 
 examples = {
@@ -404,8 +407,12 @@ class BigVisitor(NodeVisitor):
         control_symbol = visit[0]
 
         param_names = visit[1]['visit']
+        param_symbols = []
         if len(param_names) > 0:
             param_names = param_names[0]
+            param_symbols = [
+                PARAMETER_SYMBOLS[index]
+                for index, _ in enumerate(param_names)]
 
         edges = visit[2]['visit']
         if len(edges) > 0:
@@ -416,7 +423,8 @@ class BigVisitor(NodeVisitor):
         return Node(
             control=Control(
                 symbol=control_symbol,
-                arity=len(edges.edges)),
+                arity=len(edges.edges),
+                fun=param_symbols),
             ports=edges,
             params=param_names)
 

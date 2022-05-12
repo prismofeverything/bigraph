@@ -266,6 +266,9 @@ class Bigraph():
         self.nodes = nodes
         self.links = links
 
+        if len(self.roots) > 1:
+            self.roots = [Merge(self.roots)]
+
         return self.roots
 
     @classmethod

@@ -68,6 +68,8 @@ def tupleize_spec(original_spec):
     return spec
 
 
+
+
 class Base():
     def __init__(self):
         self.supernode = None
@@ -194,6 +196,8 @@ def unfold_spec(roots):
         root_ids.extend(root_ids)
 
     return spec
+
+
 
 
 class Bigraph():

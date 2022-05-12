@@ -329,6 +329,14 @@ class EdgeGroup(Base):
             return ''
 
 
+class One(Base):
+    def render(self, parent=None):
+        return '1'
+
+    def ground(self):
+        return self
+
+
 class Id(Base):
     def merge(self, node):
         return node
@@ -339,10 +347,10 @@ class Id(Base):
     def is_site(self):
         return True
 
+    def ground(self):
+        return One()
 
-class One(Base):
-    def render(self, parent=None):
-        return '1'
+id_node = Id()
 
 
 class Node(Base):
@@ -440,6 +448,13 @@ class Node(Base):
         subnode.join(self)
         return self
 
+    def ground(self):
+        if self.subnodes:
+            self.subnodes = self.subnodes.ground()
+        else:
+            self.subnodes = One()
+        return self
+
     def render(self, parent=False):
         render = self.symbol()
         arity = self.arity()
@@ -460,13 +475,16 @@ class Node(Base):
         return render
 
 
-id_node = Id()
-
-
 class Parallel(Base):
     def __init__(self, parallel):
         super().__init__()
         self.parallel = parallel or []
+
+    def ground(self):
+        self.parallel = [
+            parallel.ground()
+            for parallel in self.parallel]
+        return self
 
     def render(self, parent=False):
         parallel = ' || '.join([
@@ -487,6 +505,12 @@ class Merge(Base):
 
     def merge(self, other):
         self.parts.extend(other.get_merge())
+        return self
+
+    def ground(self):
+        self.parts = [
+            parts.ground()
+            for parts in self.parts]
         return self
 
     def render(self, parent=False):
@@ -759,28 +783,41 @@ class BigraphicalReactiveSystem(Base):
         with open(big_path, 'w') as big_file:
             big_file.write(render)
 
-    def execute(
-        self,
-        path=None,
-        key=None,
-        format='json',
-        console=False):
+    def subcommand_options(self, subcommand, path, key, **options):
+        command = [subcommand]
+        if subcommand == 'sim':
+            command.extend(['-s', '-t', path / key])
+            if 'time' in options:
+                command.extend(['-T', options['time']])
+        elif subcommand == 'validate':
+            command.extend(['-s', '-t', path / key])
+        return command
 
-        if not format in AVAILABLE_OUTPUT_FORMATS:
-            raise Exception(f'output format "{format}" not supported. Available formats are {AVAILABLE_OUTPUT_FORMATS}')
+    def execute(
+            self,
+            path=None,
+            key=None,
+            subcommand='sim',
+            format='json',
+            console=False):
+
+        if isinstance(format, str):
+            format = (format,)
+        for f in format:
+            if not f in AVAILABLE_OUTPUT_FORMATS:
+                raise Exception(f'output format "{format}" not supported. Available formats are {AVAILABLE_OUTPUT_FORMATS}')
 
         path = path or self.path
         key = key or self.key
 
-        command = [
-            self.executable,
-            'sim',
-            '-s',
-            '-t',
-            path / key,
+        options = self.subcommand_options(subcommand, path, key)
+
+        command = [self.executable]
+        command.extend(options)
+        command.extend([
             '-f',
-            format,
-            path / f'{key}.big']
+            ','.join(format),
+            path / f'{key}.big'])
 
         bigrapher_process = subprocess.Popen(command, stdout=subprocess.PIPE)
         output, error = bigrapher_process.communicate()
@@ -800,11 +837,14 @@ class BigraphicalReactiveSystem(Base):
         with open(path / f'{key}.json', 'r') as system_file:
             transitions = json.load(system_file)['brs']
 
-        trajectory = nx.DiGraph()
-        for transition in transitions:
-            edge = [transition['source'], transition['target']]
-            trajectory.add_edge(*edge)
-        steps = nx.topological_generations(trajectory)
+        if len(transitions) > 0:
+            trajectory = nx.DiGraph()
+            for transition in transitions:
+                edge = [transition['source'], transition['target']]
+                trajectory.add_edge(*edge)
+            steps = nx.topological_generations(trajectory)
+        else:
+            steps = [['0']]
 
         history = []
         for step in steps:
@@ -817,18 +857,25 @@ class BigraphicalReactiveSystem(Base):
         return history
 
     def simulate(
-        self,
-        path=None,
-        key=None,
-        format='json',
-        console=False):
+            self,
+            path=None,
+            key=None,
+            subcommand='sim',
+            format='json',
+            console=False):
 
         path = path or self.path
         key = key or self.key
 
         self.write(path=path, key=key)
-        self.execute(path=path, key=key, format=format, console=console)
+        self.execute(
+            path=path,
+            key=key,
+            subcommand=subcommand,
+            format=format,
+            console=console)
         result = self.read(path=path, key=key)
+
         return result
 
     def render(self, parent=False):
@@ -845,12 +892,47 @@ class BigraphicalReactiveSystem(Base):
             f'{bigraph.render()};'
             for symbol, bigraph in self.bigraphs.items()])
 
-        declarations = '\n\n'.join([controls, reactions, bigraphs])
+        big = '\n\n'.join([controls, reactions, bigraphs])
 
-        system = self.system.render() if self.system else ''
+        if self.system:
+            system = self.system.render()
+            big = '\n\n'.join([big, system])
 
-        big = '\n\n'.join([declarations, system])
         return big
+
+
+def visualize(
+        big,
+        names=None,
+        path='out/test/visualize',
+        executable='../bigraph-tools/_build/default/bigrapher/src/bigrapher.exe'):
+
+    if names is None:
+        names = 'abcdefghijklmnopqrstuvwxyz'
+
+    bigraph = Bigraph.unfold(big)
+    bigraphs = {
+        index: Big(symbol=names[index % len(names)], root=root.ground())
+        for index, root in enumerate(bigraph.roots)}
+
+    system = System(
+        system_type='brs',
+        bindings=[],
+        init=Init(symbol=names[0]))
+
+    brs = BigraphicalReactiveSystem(
+        controls=bigraph.controls,
+        bigraphs=bigraphs,
+        system=system,
+        executable=executable,
+        path=path)
+
+    result = brs.simulate(
+        subcommand='sim',
+        format=('json','svg'),
+        console=True)
+    
+    import ipdb; ipdb.set_trace()
 
 
 def test_bigraphical_system(
@@ -867,7 +949,7 @@ def test_bigraphical_system(
         'Fun': Control(symbol='Fun'),
         '1': Control(symbol='1')}
 
-    a0 = Node(ctrl['A'], ['a']).nest(
+    a0 = Node(ctrl['A'], ports=['a']).nest(
         Node(ctrl['Snd']).nest(
             Merge([
                 Node(ctrl['M'], ports=['a', 'v_a']),
@@ -986,7 +1068,9 @@ def test_bigraphical_system(
         print(transition.render())
 
 
-def test_bigraph():
+def test_bigraph(
+        executable='../bigraph-tools/_build/default/bigrapher/src/bigrapher.exe'):
+
     controls = {
         'A': {
             'symbol': 'A',
@@ -994,6 +1078,7 @@ def test_bigraph():
         'B': {
             'symbol': 'B',
             'arity': 2,
+            # 'atomic': True,
             'fun': ('x', 'y')}}
 
     nodes = {
@@ -1028,7 +1113,35 @@ def test_bigraph():
     for root in bigraph.roots:
         print(root)
 
-    import ipdb; ipdb.set_trace()
+    names = ['aabb']
+
+    bigraphs = {
+        index: Big(symbol=names[index % len(names)], root=root.ground())
+        for index, root in enumerate(bigraph.roots)}
+
+    print(bigraphs)
+
+    system = System(
+        system_type='brs',
+        bindings=[],
+        init=Init(symbol='aabb'))
+
+    brs = BigraphicalReactiveSystem(
+        controls=bigraph.controls,
+        bigraphs=bigraphs,
+        system=system,
+        executable=executable,
+        path='out/test/validate')
+
+    result = brs.simulate(
+        subcommand='sim',
+        format=('json','svg'),
+        console=True)
+
+    print('\n\n\n')
+    print('TRANSITIONS:')
+    for transition in result:
+        print(transition.render())
 
 
 def test_all():

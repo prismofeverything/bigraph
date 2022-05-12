@@ -549,3 +549,5 @@ def test_parse_bigraph():
 
 if __name__ == '__main__':
     fire.Fire(test_parse_bigraph)
+
+

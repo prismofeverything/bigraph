@@ -159,7 +159,6 @@ class Base():
         elif len(targets) == 1:
             root = nodes[targets[0]]
         else:
-            # TODO: is this true?
             raise Exception('cannot have a bigraph without at least one root node')
 
         for nest in place_state['nn']:
@@ -275,17 +274,6 @@ class Bigraph():
     def unfold(cls, roots):
         spec = unfold_spec(roots)
         return cls(**spec)
-        # spec = {}
-
-        # id_generator = SequentialGenerator()
-        # root_ids = []
-
-        # for root in roots:
-        #     root_spec, root_ids = root.unfold(id_generator)
-        #     spec = merge_spec(spec, root_spec)
-        #     root_ids.extend(root_ids)
-
-        # return spec
 
 
 class Control(Base):
@@ -337,8 +325,6 @@ class Edge(Base):
         super().__init__()
         self.symbol = symbol
         self.nodes = nodes or []
-        # for node in self.nodes:
-        #     self.link(node)
 
     def is_empty(self):
         return self.symbol is None or self.symbol == ''
@@ -355,8 +341,6 @@ class Edge(Base):
 
 
 class EdgeGroup(Base):
-    # TODO: link all edges together?
-
     def __init__(self, edges=None):
         super().__init__()
         edges = edges or []
@@ -1179,9 +1163,6 @@ def test_bigraphical_system(
        format='json',
        console=True)
 
-       # format='svg',
-       # console=True)
-
     print(reactive_system.render())
     print('\n\n\n')
     print('TRANSITIONS:')
@@ -1199,7 +1180,6 @@ def test_bigraph(
         'B': {
             'symbol': 'B',
             'arity': 2,
-            # 'atomic': True,
             'fun': ('x', 'y')}}
 
     nodes = {

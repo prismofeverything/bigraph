@@ -270,7 +270,9 @@ class Bigraph():
         self.links = links
 
         if len(self.roots) > 1:
-            self.roots = [Merge(self.roots)]
+            self.roots = Merge(self.roots)
+        else:
+            self.roots = self.roots[0]
 
         return self.roots
 
@@ -1022,8 +1024,11 @@ def visualize(
 
     bigraph = Bigraph.unfold(big)
     bigraphs = {
-        index: Big(symbol=names[index % len(names)], root=root.ground())
-        for index, root in enumerate(bigraph.roots)}
+        0: Big(symbol=names[0], root=bigraph.roots.ground())}
+
+    # bigraphs = {
+    #     index: Big(symbol=names[index % len(names)], root=root.ground())
+    #     for index, root in enumerate(bigraph.roots)}
 
     system = System(
         system_type='brs',

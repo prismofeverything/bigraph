@@ -9,6 +9,7 @@ from IPython.display import SVG, display
 
 
 AVAILABLE_OUTPUT_FORMATS = ['json', 'svg', 'txt']
+PARAMETER_SYMBOLS = 'abcdefghijklmnopqrstuvwxyz'
 
 
 def show_svg(path):
@@ -437,9 +438,15 @@ class Node(Base):
         if missing > 0:
             self.params.extend([
                 None for _ in range(missing)])
+        elif missing < 0:
+            self.control.fun.extend([
+                PARAMETER_SYMBOLS[index]
+                for index in range(-missing)])
         ports = ports or []
         if isinstance(ports, (list, tuple)):
             ports = EdgeGroup(edges=ports)
+        if self.control.arity < len(ports.edges):
+            self.control.arity = len(ports.edges)
         self.ports = ports
         self.subnodes = subnodes
 
@@ -514,6 +521,8 @@ class Node(Base):
 
     def link(self, edge):
         self.ports.link(edge)
+        if self.control.arity < self.ports.arity():
+            self.control.arity = self.ports.arity()
         return self
 
     def assign(self, param, value):
@@ -1016,12 +1025,9 @@ def visualize_transition(
 
 def visualize(
         big,
-        names=None,
+        names=PARAMETER_SYMBOLS,
         path='out/test/visualize',
         executable='bigrapher'):
-
-    if names is None:
-        names = 'abcdefghijklmnopqrstuvwxyz'
 
     bigraph = Bigraph.unfold(big)
     bigraphs = {
@@ -1042,8 +1048,7 @@ def visualize(
 
     result = brs.simulate(
         subcommand='sim',
-        format=('json','svg'),
-        console=True)
+        format=('json','svg'))
     
     visualize_transition(0)
 

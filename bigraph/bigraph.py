@@ -842,8 +842,10 @@ class System(Base):
             '    ' + binding.render()
             for binding in self.bindings]) + ';\n' if self.bindings else ''
         rules = self.rules.render()
-        preds = self.preds.render() + ';\n' if self.preds else ''
-        render = f'begin {self.system_type}\n{bindings}    {init};\n    {rules};\n    {preds}end\n'
+        render = f'begin {self.system_type}\n{bindings}    {init};\n    {rules};'
+        if self.preds:
+            render = f'\n    {self.preds.render()};\nend\n'
+        render = f'{render}\nend\n'
         return render
 
 

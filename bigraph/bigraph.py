@@ -844,7 +844,7 @@ class System(Base):
         rules = self.rules.render()
         render = f'begin {self.system_type}\n{bindings}    {init};\n    {rules};'
         if self.preds:
-            render = f'\n    {self.preds.render()};\nend\n'
+            render = f'{render}\n    {self.preds.render()};'
         render = f'{render}\nend\n'
         return render
 

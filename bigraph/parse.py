@@ -552,10 +552,6 @@ def test_parse_bigraph():
 
     print(psd_fifo.render())
 
-    import ipdb; ipdb.set_trace()
-
 
 if __name__ == '__main__':
     fire.Fire(test_parse_bigraph)
-
-

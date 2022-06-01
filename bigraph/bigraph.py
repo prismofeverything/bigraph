@@ -16,6 +16,12 @@ def show_svg(path):
     display(SVG(filename=path))
 
 
+def show_svgs(paths):
+    display([
+        SVG(filename=path)
+        for path in paths])
+
+
 def none_index(seq):
     for index, value in enumerate(seq):
         if value is None:
@@ -945,8 +951,8 @@ class BigraphicalReactiveSystem(Base):
             print(error)
             print('\n\n\n')
 
-    def read(self, path=None, key=None):
-        path = path or self.path
+    def read(self, path=None, key=None, format='json'):
+        path = Path(path or self.path)
         key = key or self.key
 
         with open(path / f'{key}.json', 'r') as system_file:
@@ -964,23 +970,57 @@ class BigraphicalReactiveSystem(Base):
         history = []
         for step in steps:
             for parallel in step:
-                with open(path / f'{parallel}.json', 'r') as step_file:
-                    state = json.load(step_file)
-                    root = Base.from_spec(state)
-                    history.append(root)
+                if format == 'svg':
+                    svg_path = path / f'{parallel}.svg'
+                    history.append(SVG(filename=svg_path))
+                elif format == 'json':
+                    with open(path / f'{parallel}.{format}', 'r') as step_file:
+                        state = json.load(step_file)
+                        root = Base.from_spec(state)
+                        history.append(root)
+                else:
+                    raise Exception(f'format {format} not supported')
 
         return history
+
+    # def read_svg(self, path=None, key=None):
+    #     path = Path(path or self.path)
+    #     key = key or self.key
+
+    #     with open(path / f'{key}.json', 'r') as system_file:
+    #         transitions = json.load(system_file)['brs']
+
+    #     if len(transitions) > 0:
+    #         trajectory = nx.DiGraph()
+    #         for transition in transitions:
+    #             edge = [transition['source'], transition['target']]
+    #             trajectory.add_edge(*edge)
+    #         steps = nx.topological_generations(trajectory)
+    #     else:
+    #         steps = [['0']]
+
+    #     history = []
+    #     for step in steps:
+    #         for parallel in step:
+    #             svg_path = path / f'{parallel}.svg'
+    #             history.append(SVG(filename=svg_path))
+
+    #     return history
+
+    def display_transitions(self, path=None, key=None):
+        transitions = self.read(path=path, key=key, format='svg')
+        display(transitions)
 
     def simulate(
             self,
             path=None,
             key=None,
             subcommand='sim',
-            format='json',
+            format=('json', 'svg'),
             steps=None,
             console=False):
 
-        path = path or self.path
+        path = Path(path or self.path)
         key = key or self.key
 
         self.write(path=path, key=key)

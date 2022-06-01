@@ -5,7 +5,7 @@ import fire
 import subprocess
 import networkx as nx
 from pathlib import Path
-from IPython.display import SVG, display
+from IPython.display import SVG, HTML, display
 
 
 AVAILABLE_OUTPUT_FORMATS = ['json', 'svg', 'txt']
@@ -972,7 +972,7 @@ class BigraphicalReactiveSystem(Base):
             for parallel in step:
                 if format == 'svg':
                     svg_path = path / f'{parallel}.svg'
-                    history.append(SVG(filename=svg_path))
+                    history.append(svg_path)
                 elif format == 'json':
                     with open(path / f'{parallel}.{format}', 'r') as step_file:
                         state = json.load(step_file)
@@ -983,33 +983,23 @@ class BigraphicalReactiveSystem(Base):
 
         return history
 
-    # def read_svg(self, path=None, key=None):
-    #     path = Path(path or self.path)
-    #     key = key or self.key
-
-    #     with open(path / f'{key}.json', 'r') as system_file:
-    #         transitions = json.load(system_file)['brs']
-
-    #     if len(transitions) > 0:
-    #         trajectory = nx.DiGraph()
-    #         for transition in transitions:
-    #             edge = [transition['source'], transition['target']]
-    #             trajectory.add_edge(*edge)
-    #         steps = nx.topological_generations(trajectory)
-    #     else:
-    #         steps = [['0']]
-
-    #     history = []
-    #     for step in steps:
-    #         for parallel in step:
-    #             svg_path = path / f'{parallel}.svg'
-    #             history.append(SVG(filename=svg_path))
-
-    #     return history
+    def html_transitions(self, path=None, key=None):
+        transition_paths = self.read(path=path, key=key, format='svg')
+        width = 100 // len(transition_paths)
+        header = '<div class="row">\n'
+        footer = '</div>'
+        styles = 'float:left;'
+        # styles = 'float:left;margin-right:30px;'
+        rows = [
+            f'<img src="{path}" style="width:{width}%;{styles}"></img>'
+            for path in transition_paths
+        ]
+        result = header + '\n'.join(rows) + footer
+        return result
 
     def display_transitions(self, path=None, key=None):
-        transitions = self.read(path=path, key=key, format='svg')
-        display(transitions)
+        result = self.html_transitions(path=path, key=key)
+        return display(HTML(result))
 
     def simulate(
             self,

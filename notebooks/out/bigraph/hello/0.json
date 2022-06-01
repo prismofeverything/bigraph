@@ -1,0 +1,27 @@
+{
+  "nodes": [
+    {
+      "node_id": 0,
+      "control": {
+        "ctrl_name": "Hello",
+        "ctrl_params": [],
+        "ctrl_arity": 0
+      }
+    }
+  ],
+  "place_graph": {
+    "num_regions": 1,
+    "num_nodes": 1,
+    "num_sites": 0,
+    "rn": [
+      {
+        "source": 0,
+        "target": 0
+      }
+    ],
+    "rs": [],
+    "nn": [],
+    "ns": []
+  },
+  "link_graph": []
+}

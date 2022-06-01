@@ -1,0 +1,100 @@
+{
+  "nodes": [
+    {
+      "node_id": 0,
+      "control": {
+        "ctrl_name": "Hello",
+        "ctrl_params": [],
+        "ctrl_arity": 0
+      }
+    },
+    {
+      "node_id": 1,
+      "control": {
+        "ctrl_name": "World",
+        "ctrl_params": [],
+        "ctrl_arity": 0
+      }
+    },
+    {
+      "node_id": 2,
+      "control": {
+        "ctrl_name": "World",
+        "ctrl_params": [],
+        "ctrl_arity": 0
+      }
+    },
+    {
+      "node_id": 3,
+      "control": {
+        "ctrl_name": "World",
+        "ctrl_params": [],
+        "ctrl_arity": 0
+      }
+    },
+    {
+      "node_id": 4,
+      "control": {
+        "ctrl_name": "World",
+        "ctrl_params": [],
+        "ctrl_arity": 0
+      }
+    },
+    {
+      "node_id": 5,
+      "control": {
+        "ctrl_name": "World",
+        "ctrl_params": [],
+        "ctrl_arity": 0
+      }
+    },
+    {
+      "node_id": 6,
+      "control": {
+        "ctrl_name": "World",
+        "ctrl_params": [],
+        "ctrl_arity": 0
+      }
+    }
+  ],
+  "place_graph": {
+    "num_regions": 1,
+    "num_nodes": 7,
+    "num_sites": 0,
+    "rn": [
+      {
+        "source": 0,
+        "target": 0
+      }
+    ],
+    "rs": [],
+    "nn": [
+      {
+        "source": 0,
+        "target": 1
+      },
+      {
+        "source": 1,
+        "target": 2
+      },
+      {
+        "source": 2,
+        "target": 3
+      },
+      {
+        "source": 3,
+        "target": 4
+      },
+      {
+        "source": 4,
+        "target": 5
+      },
+      {
+        "source": 5,
+        "target": 6
+      }
+    ],
+    "ns": []
+  },
+  "link_graph": []
+}

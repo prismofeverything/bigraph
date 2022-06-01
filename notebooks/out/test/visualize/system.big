@@ -1,0 +1,13 @@
+ctrl World = 0;
+ctrl Hello = 0;
+
+
+
+big a = Hello.World.1;
+
+begin brs
+    init a;
+    rules = [
+        
+    ];
+end

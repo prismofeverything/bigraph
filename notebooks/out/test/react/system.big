@@ -1,0 +1,17 @@
+ctrl Hello = 0;
+ctrl World = 0;
+
+react add_world = 
+    Hello
+    -->
+    Hello.World;
+
+
+big initial = Hello.1;
+
+begin brs
+    init initial;
+    rules = [
+        {add_world}
+    ];
+end

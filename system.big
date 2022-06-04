@@ -1,0 +1,51 @@
+ctrl A = 0;
+ctrl B = 0;
+ctrl F = 0;
+ctrl Phi = 0;
+
+react f = 
+    A | A.(F | id)
+    -->
+    A.(F | B | id);
+
+react b = 
+    A.(B | F | id)
+    -->
+    A.(B | Phi | id);
+
+react phi = 
+    A.(Phi | B | id)
+    -->
+    A.(Phi | F | id);
+
+react degrade_F = 
+    A.(F | id)
+    -->
+    A.(B | id);
+
+react degrade_B = 
+    A.(B | id)
+    -->
+    A | A.id;
+
+react degrade_Phi = 
+    A.(Phi | id)
+    -->
+    A.(F | id);
+
+react divide = 
+    A.(F | F | Phi | Phi | B | B | B | id)
+    -->
+    A.(F | Phi | B | id) | A.(F | Phi | B)
+    @[0,2,4,7,1,3,5];
+
+
+big initial = A | A | A | A | A | A | A.F;
+
+begin sbrs
+    init initial;
+    rules = [
+        {divide},
+        {f,b,phi,degrade_F,degrade_B,degrade_Phi}
+    ];
+end

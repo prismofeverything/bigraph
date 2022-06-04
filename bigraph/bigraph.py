@@ -712,6 +712,9 @@ class Big(Base):
         self.symbol = symbol
         self.root = root
 
+    def ground(self):
+        self.root.ground()
+
     def render(self):
         return f'big {self.symbol} = {self.root.render()}'
 
@@ -883,10 +886,16 @@ class BigraphicalReactiveSystem(Base):
         self.path = Path(path)
         self.key = key
 
+        self.ground_initial()
+
     @classmethod
     def from_spec(cls, spec):
         state = Base.from_spec(spec['state'])
         return cls(bigraphs=[state])
+
+    def ground_initial(self):
+        symbol = self.system.init.symbol
+        self.bigraphs[symbol].ground()
 
     def write(self, path=None, key=None):
         path = path or self.path
@@ -1029,7 +1038,7 @@ class BigraphicalReactiveSystem(Base):
         controls = '\n'.join([
             f'{control.render()};'
             for symbol, control in self.controls.items()
-            if symbol != '1'])
+            if symbol != '1' and symbol != 'id'])
 
         reactions = '\n'.join([
             f'{reaction.render(indent=4)};\n'
@@ -1130,11 +1139,19 @@ def react(
     result = brs.simulate(
         subcommand='sim',
         format=('json','svg'),
+        # console=True,
         steps=0)
     
-    # visualize_transition(1, path=path)
-
     return result[1]
+
+
+def apply_reactions(reactions, initial):
+    history = [initial]
+    state = initial
+    for reaction in reactions:
+        state = react(reaction, state)
+        history.append(state)
+    return history
 
 
 def test_bigraphical_system(

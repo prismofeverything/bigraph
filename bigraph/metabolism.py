@@ -1,4 +1,4 @@
-from bigraph.bigraph import Base, Bigraph, BigraphicalReactiveSystem, react, apply_reactions
+from bigraph.bigraph import Base, Bigraph, Merge, BigraphicalReactiveSystem, react, apply_reactions
 from bigraph.parse import bigraph
 
 class Metabolism(Base):
@@ -92,13 +92,15 @@ class Metabolism(Base):
         #   "A | A.(F | Phi)"
         #   "A.(F | Phi | B)"
 
-        self.bigraphs = {
-            'initial': bigraph("""
-                big initial = A | A | A | A | A | A | A.F""")}
+        def initial_state(n):
+            m = bigraph('F | Phi | B')
+            a = Merge([bigraph('A') for _ in range(n - 1)])
+            a.parts[-1].nest(m)
+            return a
 
-        # self.bigraphs = {
-        #     'initial': bigraph("""
-        #         big initial = B | B | B | B | B | B | B.F""")}
+        self.bigraphs = {
+            'initial': bigraph(f"""
+                big initial = {initial_state(34)}""")}
 
         self.system = bigraph("""
             begin brs

@@ -121,7 +121,7 @@ class Metabolism(Base):
             path=path)
 
 
-def test_metabolism():
+def generate_metabolism():
     metabolism = Metabolism()
     # print(metabolism.brs.render())
     
@@ -133,6 +133,26 @@ def test_metabolism():
     Sf = metabolism.reactions['degrade_F']
     Sb = metabolism.reactions['degrade_B']
     Sphi = metabolism.reactions['degrade_Phi']
+
+    return metabolism
+
+
+def test_metabolism():
+    metabolism = generate_metabolism()
+    results = metabolism.brs.simulate(
+        key='metabolism',
+        path='out/test/metabolism',
+        # console=True,
+        steps=987)
+
+    # print('\nsimulation:')
+    print('\n')
+    for result in results:
+        print(result)
+    
+
+def run_metabolism():
+    metabolism = generate_metabolism()
 
     # script = [
     #     F, B, Phi, F, B, Phi, F, Phi, F, F, F,
@@ -159,7 +179,7 @@ def test_metabolism():
         
 
 if __name__ == '__main__':
-    test_metabolism()
+    run_metabolism()
 
 
 # first division (!)

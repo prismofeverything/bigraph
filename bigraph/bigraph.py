@@ -1326,8 +1326,6 @@ def test_bigraph(
 
     bigraph.nodes['3'].assign('y', 14)
 
-    import ipdb; ipdb.set_trace()
-
     transition = visualize(bigraph.roots)
 
     print('\n\n\n')

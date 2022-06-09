@@ -894,8 +894,9 @@ class BigraphicalReactiveSystem(Base):
         return cls(bigraphs=[state])
 
     def ground_initial(self):
-        symbol = self.system.init.symbol
-        self.bigraphs[symbol].ground()
+        if self.system and self.bigraphs:
+            symbol = self.system.init.symbol
+            self.bigraphs[symbol].ground()
 
     def write(self, path=None, key=None):
         path = path or self.path
@@ -1072,7 +1073,7 @@ def visualize(
 
     bigraph = Bigraph.unfold(big)
     bigraphs = {
-        0: Big(symbol=names[0], root=bigraph.roots.ground())}
+        names[0]: Big(symbol=names[0], root=bigraph.roots.ground())}
 
     system = System(
         system_type='brs',
@@ -1324,6 +1325,8 @@ def test_bigraph(
         links=links)
 
     bigraph.nodes['3'].assign('y', 14)
+
+    import ipdb; ipdb.set_trace()
 
     transition = visualize(bigraph.roots)
 

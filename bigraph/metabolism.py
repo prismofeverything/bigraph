@@ -94,13 +94,14 @@ class Metabolism(Base):
 
         def initial_state(n):
             m = bigraph('F | Phi | B')
-            a = Merge([bigraph('A') for _ in range(n - 1)])
+            internal = len(m.parts)
+            a = Merge([bigraph('A') for _ in range(n - internal)])
             a.parts[-1].nest(m)
             return a
 
         self.bigraphs = {
             'initial': bigraph(f"""
-                big initial = {initial_state(34)}""")}
+                big initial = {initial_state(21)}""")}
 
         self.system = bigraph("""
             begin brs

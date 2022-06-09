@@ -10,6 +10,7 @@ examples = {
     'edge-merge': '(M{a, v_a} | Ready.Fun.1)',
     'elaborate-reaction': 'react goal_check =\n Reduce.Goal.(SC.id | id | FC.id) \n-[1]-> \n Reduce.Goal.(SC.(id | Check.id) | id | FC.(id | Check.id))  \n@[0,0,1,2,2]     \n  if Check in param, !Goal in ctx, !Failure in param',
     'control': 'Aaa',
+    'control-unicode': 'φ',
     'control-one': 'Aa(3,4,5,6)',
     'control-fun': 'Aa(3,5.5,\"what\",11.111)',
     'edge': 'Aa{bbb}',

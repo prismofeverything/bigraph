@@ -39,29 +39,39 @@ class Metabolism(Base):
                         {control}.(F | Phi | id)@[1, 0, 2]"""),
                 f'b': bigraph(f"""
                     react b =
-                        B | F | id
+                        B | F
                         -->
-                        B | Phi | id"""),
+                        B | Phi"""),
                 f'phi': bigraph(f"""
                     react phi =
-                        Phi | B | id
+                        Phi | B
                         -->
-                        Phi | F | id"""),
+                        Phi | F"""),
                 f'degrade_F': bigraph(f"""
                     react degrade_F =
-                        F | id
+                        F
                         -->
-                        B | id"""),
+                        B"""),
                 f'degrade_B_{control}': bigraph(f"""
                     react degrade_B_{control} =
-                        {control}.(id | id)
+                        {control}.(B | id)
                         -->
-                        id | {control}.id"""),
+                        B | {control}.id"""),
+                # f'degrade_F_{control}': bigraph(f"""
+                #     react degrade_F_{control} =
+                #         {control}.(F | id)
+                #         -->
+                #         F | {control}.id"""),
+                # f'degrade_Phi_{control}': bigraph(f"""
+                #     react degrade_Phi_{control} =
+                #         {control}.(Phi | id)
+                #         -->
+                #         Phi | {control}.id"""),
                 f'degrade_Phi': bigraph(f"""
                     react degrade_Phi =
-                        Phi | id
+                        Phi
                         -->
-                        F | id"""),
+                        F"""),
                 f'divide_{control}': bigraph(f"""
                     react divide_{control} =
                         {control}.(F | F | Phi | Phi | B | B | B | id)
@@ -69,53 +79,6 @@ class Metabolism(Base):
                         {control}.(F | Phi | B | id) | B.(F | Phi | B | id)
                         @[0, 2, 4, 7, 1, 3, 6, 5]
                     """)}
-                # f'fB_{control}': bigraph(f"""
-                #     react fB_{control} =
-                #         B | {control}.(F | id)
-                #         -->
-                #         {control}.(F | B | id)@[1, 0, 2]"""),
-                # f'fF_{control}': bigraph(f"""
-                #     react fF_{control} =
-                #         F | {control}.(F | id)
-                #         -->
-                #         {control}.(F | F | id)@[1, 0, 2]"""),
-                # f'fPhi_{control}': bigraph(f"""
-                #     react fPhi_{control} =
-                #         Phi | {control}.(F | id)
-                #         -->
-                #         {control}.(F | Phi | id)@[1, 0, 2]"""),
-                # f'b_{control}': bigraph(f"""
-                #     react b_{control} =
-                #         {control}.(B | F | id)
-                #         -->
-                #         {control}.(B | Phi | id)"""),
-                # f'phi_{control}': bigraph(f"""
-                #     react phi_{control} =
-                #         {control}.(Phi | B | id)
-                #         -->
-                #         {control}.(Phi | F | id)"""),
-                # f'degrade_F_{control}': bigraph(f"""
-                #     react degrade_F_{control} =
-                #         {control}.(F | id)
-                #         -->
-                #         {control}.(B | id)"""),
-                # f'degrade_B_{control}': bigraph(f"""
-                #     react degrade_B_{control} =
-                #         {control}.(B | id)
-                #         -->
-                #         B | {control}.id"""),
-                # f'degrade_Phi_{control}': bigraph(f"""
-                #     react degrade_Phi_{control} =
-                #         {control}.(Phi | id)
-                #         -->
-                #         {control}.(F | id)"""),
-                # f'divide_{control}': bigraph(f"""
-                #     react divide_{control} =
-                #         {control}.(F | F | Phi | Phi | B | B | B | id)
-                #         -->
-                #         {control}.(F | Phi | B | id) | B.(F | Phi | B | id)
-                #         @[0, 2, 4, 7, 1, 3, 6, 5]
-                #     """)}
 
             self.reactions.update(control_reactions)
 
@@ -195,6 +158,7 @@ def run_metabolism(
             for result in results:
                 print(result)
 
+        # print(f'steps: {len(results)}')
         # running = False
         
 

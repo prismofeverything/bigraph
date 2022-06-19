@@ -24,6 +24,7 @@ def test_history(path='histories/metabolism'):
     histories.sort(key=len, reverse=True)
     for line in histories[0]:
         print(line.strip())
+    print(f'history lengths: {[len(history) for history in histories]}')
     print(f'total histories: {len(histories)}')
     print(f'longest history: {len(histories[0])}')
 

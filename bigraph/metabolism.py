@@ -1,4 +1,5 @@
 import itertools
+import fire
 
 from bigraph.bigraph import Base, Bigraph, Merge, BigraphicalReactiveSystem, react, apply_reactions
 from bigraph.parse import bigraph
@@ -118,7 +119,9 @@ def test_metabolism():
         print(result)
     
 
-def run_metabolism():
+def run_metabolism(
+        above=43,
+        steps=8888):
     metabolism = Metabolism()
 
     # script = [
@@ -138,17 +141,18 @@ def run_metabolism():
             key='metabolism',
             path='out/test/metabolism',
             # console=True,
-            steps=987)
+            steps=steps)
 
-        print('\n')
-        for result in results:
-            print(result)
+        if len(results) > above:
+            print('\n')
+            for result in results:
+                print(result)
 
         # running = False
         
 
 if __name__ == '__main__':
-    run_metabolism()
+    fire.Fire(run_metabolism)
 
 
 # first division (!)

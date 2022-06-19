@@ -1,101 +1,80 @@
+import itertools
+
 from bigraph.bigraph import Base, Bigraph, Merge, BigraphicalReactiveSystem, react, apply_reactions
 from bigraph.parse import bigraph
+
+
+def partition(items, predicate=bool):
+    a, b = itertools.tee((predicate(item), item) for item in items)
+    return (tuple(item for pred, item in a if not pred),
+            tuple(item for pred, item in b if pred))
+
 
 class Metabolism(Base):
     def __init__(self, path='.'):
         self.controls = {
-            'A': bigraph('ctrl A = 0'),
+            # 'A': bigraph('ctrl A = 0'),
             'B': bigraph('ctrl B = 0'),
             'F': bigraph('ctrl F = 0'),
             'Phi': bigraph('ctrl Phi = 0')}
 
-        self.reactions = {
-            'f': bigraph("""
-                react f =
-                    A | A.(F | id)
-                    -->
-                    A.(B | F | id)"""),
-            'b': bigraph("""
-                react b =
-                    A.(B | F | id)
-                    -->
-                    A.(B | Phi | id)"""),
-            'phi': bigraph("""
-                react phi =
-                    A.(Phi | B | id)
-                    -->
-                    A.(Phi | F | id)"""),
-            'degrade_F': bigraph("""
-                react degrade_F =
-                    A.(F | id)
-                    -->
-                    A.(B | id)"""),
-            'degrade_B': bigraph("""
-                react degrade_B =
-                    A.(B | id)
-                    -->
-                    A | A.id"""),
-            'degrade_Phi': bigraph("""
-                react degrade_Phi =
-                    A.(Phi | id)
-                    -->
-                    A.(F | id)"""),
-            'divide': bigraph("""
-                react divide =
-                    A.(F | F | Phi | Phi | B | B | B | id)
-                    -->
-                    A.(F | Phi | B | id) | A.(F | Phi | B)
-                    @[0,2,4,7,1,3,5];
-                """),
-            'b_f': bigraph("""
-                react b_f =
-                    B | B.(F | id)
-                    -->
-                    B.(B | F | id)"""),
-            'b_b': bigraph("""
-                react b_b =
-                    B.(B | F | id)
-                    -->
-                    B.(B | Phi | id)"""),
-            'b_phi': bigraph("""
-                react b_phi =
-                    B.(Phi | B | id)
-                    -->
-                    B.(Phi | F | id)"""),
-            'b_degrade_F': bigraph("""
-                react b_degrade_F =
-                    B.(F | id)
-                    -->
-                    B.(B | id)"""),
-            'b_degrade_B': bigraph("""
-                react b_degrade_B =
-                    B.(B | id)
-                    -->
-                    B | B.id"""),
-            'b_degrade_Phi': bigraph("""
-                react b_degrade_Phi =
-                    B.(Phi | id)
-                    -->
-                    B.(F | id)"""),
-            'b_divide': bigraph("""
-                react b_divide =
-                    B.(F | F | Phi | Phi | B | B | B | id)
-                    -->
-                    B.(F | Phi | B | id) | B.(F | Phi | B)
-                    @[0,2,4,7,1,3,5];
-                """)}
+        self.reactions = {}
+        for control in self.controls.keys():
+            control_reactions = {
+                f'fB_{control}': bigraph(f"""
+                    react fB_{control} =
+                        B | {control}.(F | id)
+                        -->
+                        {control}.(F | B | id)@[1, 0, 2]"""),
+                f'fF_{control}': bigraph(f"""
+                    react fF_{control} =
+                        F | {control}.(F | id)
+                        -->
+                        {control}.(F | F | id)@[1, 0, 2]"""),
+                f'fPhi_{control}': bigraph(f"""
+                    react fPhi_{control} =
+                        Phi | {control}.(F | id)
+                        -->
+                        {control}.(F | Phi | id)@[1, 0, 2]"""),
+                f'b_{control}': bigraph(f"""
+                    react b_{control} =
+                        {control}.(B | F | id)
+                        -->
+                        {control}.(B | Phi | id)"""),
+                f'phi_{control}': bigraph(f"""
+                    react phi_{control} =
+                        {control}.(Phi | B | id)
+                        -->
+                        {control}.(Phi | F | id)"""),
+                f'degrade_F_{control}': bigraph(f"""
+                    react degrade_F_{control} =
+                        {control}.(F | id)
+                        -->
+                        {control}.(B | id)"""),
+                f'degrade_B_{control}': bigraph(f"""
+                    react degrade_B_{control} =
+                        {control}.(B | id)
+                        -->
+                        B | {control}.id"""),
+                f'degrade_Phi_{control}': bigraph(f"""
+                    react degrade_Phi_{control} =
+                        {control}.(Phi | id)
+                        -->
+                        {control}.(F | id)"""),
+                f'divide_{control}': bigraph(f"""
+                    react divide_{control} =
+                        {control}.(F | F | Phi | Phi | B | B | B | id)
+                        -->
+                        {control}.(F | Phi | B | id) | B.(F | Phi | B | id)
+                        @[0, 2, 4, 7, 1, 3, 6, 5]
+                    """)}
 
-        # optimal transitions
-        #   "A | A | A.F"
-        #   "A | A.(B | F)"
-        #   "A | A.(Phi | B)"
-        #   "A | A.(F | Phi)"
-        #   "A.(F | Phi | B)"
+            self.reactions.update(control_reactions)
 
         def initial_state(n):
             m = bigraph('F | Phi | B')
             internal = len(m.parts)
-            a = Merge([bigraph('A') for _ in range(n - internal)])
+            a = Merge([bigraph('B') for _ in range(n - internal)])
             a.parts[-1].nest(m)
             return a
 
@@ -103,15 +82,19 @@ class Metabolism(Base):
             'initial': bigraph(f"""
                 big initial = {initial_state(21)}""")}
 
+        reaction_keys, divide_keys = partition(
+            self.reactions.keys(),
+            lambda x: x.startswith('divide'))
+
         self.system = bigraph("""
             begin brs
                 init initial;
                 rules = [
-                    {divide,b_divide},
-                    {f,b,phi,degrade_F,degrade_B,degrade_Phi,
-                     b_f,b_b,b_phi,b_degrade_F,b_degrade_B,b_degrade_Phi}
                 ];
             end""")
+
+        self.system.rules.add(divide_keys)
+        self.system.rules.add(reaction_keys)
 
         self.brs = BigraphicalReactiveSystem(
             controls=self.controls,
@@ -121,24 +104,8 @@ class Metabolism(Base):
             path=path)
 
 
-def generate_metabolism():
-    metabolism = Metabolism()
-    # print(metabolism.brs.render())
-    
-    initial = metabolism.bigraphs['initial'].root
-    F = metabolism.reactions['f']
-    B = metabolism.reactions['b']
-    Phi = metabolism.reactions['phi']
-    divide = metabolism.reactions['divide']
-    Sf = metabolism.reactions['degrade_F']
-    Sb = metabolism.reactions['degrade_B']
-    Sphi = metabolism.reactions['degrade_Phi']
-
-    return metabolism
-
-
 def test_metabolism():
-    metabolism = generate_metabolism()
+    metabolism = Metabolism()
     results = metabolism.brs.simulate(
         key='metabolism',
         path='out/test/metabolism',
@@ -152,7 +119,7 @@ def test_metabolism():
     
 
 def run_metabolism():
-    metabolism = generate_metabolism()
+    metabolism = Metabolism()
 
     # script = [
     #     F, B, Phi, F, B, Phi, F, Phi, F, F, F,
@@ -165,17 +132,19 @@ def run_metabolism():
     # for result in results:
     #     print(result)
 
-    while True:
+    running = True
+    while running:
         results = metabolism.brs.simulate(
             key='metabolism',
             path='out/test/metabolism',
             # console=True,
             steps=987)
 
-        # print('\nsimulation:')
         print('\n')
         for result in results:
             print(result)
+
+        # running = False
         
 
 if __name__ == '__main__':
@@ -264,3 +233,4 @@ if __name__ == '__main__':
 # A | A | A | A | A | A.(B | B)
 # A | A | A | A | A | A | A.B
 # A | A | A | A | A | A | A | A
+

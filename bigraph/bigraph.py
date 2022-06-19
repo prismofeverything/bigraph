@@ -785,7 +785,7 @@ class Param(Base):
 class RuleGroup(Base):
     def __init__(
             self,
-            deterministic=True,
+            deterministic=False,
             rules=()):
         super().__init__()
         self.deterministic = deterministic
@@ -808,6 +808,11 @@ class Rules(Base):
             rule_groups=()):
         super().__init__()
         self.rule_groups = rule_groups
+
+    def add(self, rule_group):
+        if not isinstance(rule_group, Base):
+            rule_group = RuleGroup(rules=rule_group)
+        self.rule_groups.append(rule_group)
 
     def render(self):
         rules = ',\n        '.join([

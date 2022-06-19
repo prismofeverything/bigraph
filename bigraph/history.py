@@ -5,6 +5,9 @@ from bigraph.parse import bigraph
 
 def read_histories(path):
     path = Path(path)
+    if not path.exists():
+        return []
+
     histories = []
     with open(path, 'r') as file:
         history = []
@@ -21,12 +24,15 @@ def read_histories(path):
 
 def test_history(path='histories/metabolism'):
     histories = read_histories(path)
-    histories.sort(key=len, reverse=True)
-    for line in histories[0]:
-        print(line.strip())
-    print(f'history lengths: {[len(history) for history in histories]}')
-    print(f'total histories: {len(histories)}')
-    print(f'longest history: {len(histories[0])}')
+    if len(histories) == 0:
+        print('no histories')
+    else:
+        histories.sort(key=len, reverse=True)
+        for line in histories[0]:
+            print(line.strip())
+        print(f'history lengths: {[len(history) for history in histories]}')
+        print(f'total histories: {len(histories)}')
+        print(f'longest history: {len(histories[0])}')
 
 
 if __name__ == '__main__':

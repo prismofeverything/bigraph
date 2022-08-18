@@ -29,6 +29,10 @@ a python implementation of Robin Milner's bigraph formalism
 
 This library is a python interface to [bigraph-tools](https://bitbucket.org/uog-bigraph/bigraph-tools/src/master/) from the [Glasgow Bigraph Team](https://uog-bigraph.bitbucket.io/team.html), and mediates the creation, execution, and parsing of results from that suite of tools. 
 
+## Introduction
+
+[Introduction to Bigraphs](https://prismofeverything.github.io/bigraph): a brief introduction to bigraphs in general and their programmatic API as implemented by this library.
+
 ## Install on Ubuntu
 
 First you have to install bigraph-tools, which requires opam and dune.

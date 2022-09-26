@@ -22,7 +22,7 @@ a python implementation of Robin Milner's bigraph formalism
 
 
 * Free software: BSD-3-Clause
-* Documentation: <https://bigraph.readthedocs.io>
+* Documentation: <https://prismofeverything.github.io/bigraph>
 
 
 ## Usage

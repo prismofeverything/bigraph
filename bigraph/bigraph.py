@@ -453,7 +453,21 @@ class Node(Base):
         self.subnodes = subnodes
 
     def to_tree(self):
-        subtree = {}
+        symbol = self.control.symbol
+        if self.subnodes is not None:
+            subnode_trees = [subnode.to_tree() for subnode in self.subnodes]
+            return {symbol: {
+                list(subnode_tree.keys())[0]: list(
+                    subnode_tree.values())[0]
+                for subnode_tree in subnode_trees}}
+        else:
+            if ':' in symbol:
+                sym, type_key = symbol.split(':')
+                return {
+                    sym: type_key}
+            else:
+                return {
+                    symbol: {}}
 
         # if len(self.subnodes > 0):
         #     for subnode in self.subnodes:
@@ -588,6 +602,14 @@ class Parallel(Base):
         super().__init__()
         self.parallel = parallel or []
 
+    def __iter__(self):
+        return iter(self.parallel)
+
+    def to_tree(self):
+        return {
+            part.control.symbol: part.to_tree()
+            for part in self.parallel}
+
     def unfold(self, id_generator=None):
         id_generator = id_generator or SequentialGenerator()
         spec = {}
@@ -620,6 +642,19 @@ class Merge(Base):
         self.parts = []
         for merge in merges:
             self.merge(merge)
+
+    def __iter__(self):
+        return iter(self.parts)
+
+    def to_tree(self):
+        import ipdb; ipdb.set_trace()
+
+        part_trees = [part.to_tree() for part in self.parts]
+        tree = {}
+        for part_tree in part_trees:
+            tree.update(part_tree)
+
+        return tree
 
     def unfold(self, id_generator=None):
         id_generator = id_generator or SequentialGenerator()

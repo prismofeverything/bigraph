@@ -99,6 +99,9 @@ class Base():
         # TODO
         return {}
 
+    def to_tree(self):
+        return self
+
     def find_edges(self):
         return {}
 
@@ -448,6 +451,17 @@ class Node(Base):
             self.control.arity = len(ports.edges)
         self.ports = ports
         self.subnodes = subnodes
+
+    def to_tree(self):
+        subtree = {}
+
+        # if len(self.subnodes > 0):
+        #     for subnode in self.subnodes:
+                
+
+        # return {
+        #     self.control.symbol: 
+        # }
 
     def get_spec(self):
         return {
